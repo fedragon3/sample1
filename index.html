@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>기질·성격 자가탐색 검사 (TCI 기반)</title>
+<meta name="description" content="Cloninger의 TCI 7차원 이론에 기반한 무료 온라인 기질·성격 자가탐색 검사. 설치 없이 브라우저에서 바로 이용하세요." />
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --card: #ffffff;
+    --ink: #2a2a2e;
+    --muted: #6b6b73;
+    --line: #e5e1d8;
+    --accent: #7a5cc4;
+    --accent-ink: #ffffff;
+    --shadow: 0 8px 30px rgba(30, 20, 50, 0.08);
+    --radius: 18px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17161a;
+      --card: #211f26;
+      --ink: #ece9f0;
+      --muted: #a29fac;
+      --line: #34313c;
+      --accent: #a98cf0;
+      --accent-ink: #1a1620;
+      --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+      "Malgun Gothic", "Noto Sans KR", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+  }
+  h1 { font-size: 1.7rem; line-height: 1.3; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.25rem; margin: 0 0 14px; letter-spacing: -0.01em; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.86rem; }
+  .tag {
+    display: inline-block; font-size: 0.75rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; background: var(--accent);
+    color: var(--accent-ink); letter-spacing: 0.03em; margin-bottom: 16px;
+  }
+  .btn {
+    appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+    background: var(--accent); color: var(--accent-ink);
+    padding: 14px 26px; border-radius: 999px; transition: transform .06s ease, opacity .2s;
+    box-shadow: 0 4px 14px rgba(122, 92, 196, 0.28);
+  }
+  .btn:hover { opacity: .92; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  .btn-ghost {
+    background: transparent; color: var(--ink); box-shadow: none;
+    border: 1px solid var(--line);
+  }
+  .center { text-align: center; }
+  .disclaimer {
+    margin-top: 22px; padding: 14px 16px; border-radius: 12px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px dashed var(--line); font-size: 0.84rem; color: var(--muted);
+  }
+  ul.feat { list-style: none; padding: 0; margin: 20px 0; }
+  ul.feat li { padding: 8px 0 8px 30px; position: relative; }
+  ul.feat li::before {
+    content: "✦"; position: absolute; left: 4px; color: var(--accent); font-weight: 700;
+  }
+
+  /* progress */
+  .progress-head { display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px; font-size: .85rem; color: var(--muted); }
+  .bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 26px; }
+  .bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+
+  .qtext { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em;
+    min-height: 3.4em; display: flex; align-items: center; margin-bottom: 8px; }
+
+  .likert { display: grid; gap: 10px; margin: 18px 0 8px; }
+  .opt {
+    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+    padding: 15px 18px; border-radius: 14px; border: 1.5px solid var(--line);
+    background: var(--card); color: var(--ink); cursor: pointer; font: inherit;
+    transition: border-color .15s, background .15s, transform .06s;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt:active { transform: scale(.99); }
+  .opt.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted);
+    flex: 0 0 auto; display: grid; place-items: center; }
+  .opt.sel .dot { border-color: var(--accent); }
+  .opt.sel .dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .opt .lbl { font-weight: 500; }
+
+  .nav { display: flex; justify-content: space-between; margin-top: 22px; gap: 12px; }
+
+  /* results */
+  .chart-wrap { display: grid; place-items: center; margin: 8px 0 26px; }
+  svg { max-width: 100%; height: auto; }
+  .dim { border-top: 1px solid var(--line); padding: 20px 0; }
+  .dim:first-of-type { border-top: 0; }
+  .dim-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .dim-name { font-weight: 700; font-size: 1.08rem; }
+  .dim-en { color: var(--muted); font-size: .82rem; }
+  .dim-type { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); }
+  .score-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .score-bar { flex: 1; height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .score-bar > span { display: block; height: 100%; border-radius: 999px; }
+  .score-num { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 46px; text-align: right; }
+  .level { font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  .hidden { display: none !important; }
+  footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
+  a { color: var(--accent); }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--bg); padding: 12px 22px; border-radius: 999px;
+    font-size: .88rem; font-weight: 600; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 인트로 ===== -->
+  <section id="intro" class="card">
+    <span class="tag">무료 · 설치 불필요</span>
+    <h1>기질·성격 자가탐색 검사</h1>
+    <p class="muted">Cloninger의 <strong>TCI 7차원 이론</strong>에 기반한 온라인 자가탐색 도구입니다.
+      나의 타고난 기질과 후천적으로 발달한 성격을 7가지 축으로 살펴보세요.</p>
+    <ul class="feat">
+      <li>총 <strong id="qcount">35</strong>문항 · 약 5~7분 소요</li>
+      <li>7가지 차원(자극추구·위험회피·사회적 민감성·인내력·자율성·연대감·자기초월)</li>
+      <li>결과는 레이더 차트와 함께 즉시 확인 · 링크로 저장·공유 가능</li>
+      <li>서버 전송 없음 — 모든 응답은 내 브라우저에서만 처리됩니다</li>
+    </ul>
+    <div class="center">
+      <button class="btn" id="startBtn">검사 시작하기</button>
+    </div>
+    <div class="disclaimer">
+      ⚠️ 본 검사는 교육 및 자기이해를 위한 <strong>비공식 자가탐색 도구</strong>입니다.
+      정식 TCI 검사 문항이 아니며, 심리 상담이나 임상적 진단을 대체할 수 없습니다.
+    </div>
+  </section>
+
+  <!-- ===== 검사 ===== -->
+  <section id="quiz" class="card hidden">
+    <div class="progress-head">
+      <span id="progLabel">1 / 35</span>
+      <span id="progPct">3%</span>
+    </div>
+    <div class="bar"><span id="progFill"></span></div>
+    <div class="qtext" id="qText">—</div>
+    <div class="likert" id="likert"></div>
+    <div class="nav">
+      <button class="btn btn-ghost" id="prevBtn">← 이전</button>
+      <button class="btn btn-ghost" id="nextBtn" disabled>건너뛰기 없음</button>
+    </div>
+  </section>
+
+  <!-- ===== 결과 ===== -->
+  <section id="result" class="card hidden">
+    <span class="tag">검사 결과</span>
+    <h1>나의 기질·성격 프로필</h1>
+    <p class="muted small">점수는 각 차원에서 응답이 얼마나 그 방향에 가까운지를 0~100%로 나타냅니다.
+      높고 낮음에 좋고 나쁨은 없습니다.</p>
+    <div class="chart-wrap" id="chartWrap"></div>
+    <div id="dims"></div>
+    <div class="actions">
+      <button class="btn" id="copyBtn">결과 링크 복사</button>
+      <button class="btn btn-ghost" id="retryBtn">다시 검사하기</button>
+    </div>
+    <div class="disclaimer">
+      본 결과는 자기이해를 돕기 위한 참고 자료이며 전문적 진단이 아닙니다.
+      깊이 있는 해석이 필요하다면 전문가와 상담하시기 바랍니다.
+    </div>
+  </section>
+
+  <footer>
+    기질·성격 자가탐색 검사 · TCI(Temperament and Character Inventory, Cloninger) 7차원 이론 기반<br />
+    정식 TCI 검사와 무관한 독자적 교육용 구현물입니다.
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="questions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
