@@ -14,7 +14,8 @@
 
   const state = {
     mode: "short",   // 'short' | 'full'
-    deck: [],        // 이번 검사의 문항 배열
+    seed: 0,         // 이번 검사의 순서 시드
+    deck: [],        // 이번 검사의 문항 배열(무작위 순서)
     idx: 0,
     answers: [],     // deck 와 같은 길이, 0 = 미응답
   };
@@ -22,21 +23,24 @@
   const $ = (id) => document.getElementById(id);
   const intro = $("intro"), quiz = $("quiz"), result = $("result");
 
-  // === 문항 덱 구성 (모드에 대해 순수 함수 → 링크 복원 시 재현 가능) ===
-  // 차원별로 묶은 뒤 라운드로빈으로 섞어 같은 차원이 연속되지 않게 한다(결정적).
-  function buildDeck(mode) {
-    const pool = mode === "full" ? QUESTIONS : QUESTIONS.filter((q) => q.short);
-    const groups = {};
-    DIM_ORDER.forEach((d) => (groups[d] = []));
-    pool.forEach((q) => groups[q.d].push(q));
-    const deck = [];
-    let more = true, i = 0;
-    while (more) {
-      more = false;
-      for (const d of DIM_ORDER) {
-        if (i < groups[d].length) { deck.push(groups[d][i]); more = true; }
-      }
-      i++;
+  // === 시드 기반 난수 (mulberry32) → 같은 시드는 항상 같은 순서를 만든다 ===
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // === 문항 덱 구성 (mode + seed 에 대한 순수 함수 → 링크로 순서까지 재현) ===
+  // pool 순서는 고정, seed 로 Fisher–Yates 셔플하여 매 검사 순서를 무작위화한다.
+  function buildDeck(mode, seed) {
+    const deck = (mode === "full" ? QUESTIONS : QUESTIONS.filter((q) => q.short)).slice();
+    const rnd = mulberry32(seed);
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
     return deck;
   }
@@ -58,7 +62,8 @@
 
   function startTest(mode) {
     state.mode = mode === "full" ? "full" : "short";
-    state.deck = buildDeck(state.mode);
+    state.seed = (Math.random() * 0x7fffffff) >>> 0;   // 매 검사 새 순서
+    state.deck = buildDeck(state.mode, state.seed);
     state.answers = new Array(state.deck.length).fill(0);
     state.idx = 0;
     show("quiz");
@@ -145,7 +150,8 @@
   }
 
   function finish() {
-    const code = (state.mode === "full" ? "F" : "S") + state.answers.join("");
+    // 형식: r=<F|S><seed(36진)>-<응답숫자열>  (mode·순서·응답을 모두 담아 링크로 재현)
+    const code = (state.mode === "full" ? "F" : "S") + state.seed.toString(36) + "-" + state.answers.join("");
     history.replaceState(null, "", location.pathname + "#r=" + code);
     renderResult(computeScores(state.deck, state.answers));
     show("result");
@@ -271,15 +277,17 @@
 
   // === 공유 링크로 진입 시 결과 복원 ===
   function tryRestore() {
-    const m = location.hash.match(/r=([FS])(\d+)/);
+    const m = location.hash.match(/r=([FS])([0-9a-z]+)-(\d+)/);
     if (!m) return false;
     const mode = m[1] === "F" ? "full" : "short";
-    const digits = m[2];
-    const deck = buildDeck(mode);
+    const seed = parseInt(m[2], 36);
+    const digits = m[3];
+    if (!Number.isFinite(seed)) return false;
+    const deck = buildDeck(mode, seed);
     if (digits.length !== deck.length) return false;
     const answers = digits.split("").map(Number);
     if (answers.some((a) => a < 1 || a > 5)) return false;
-    state.mode = mode; state.deck = deck; state.answers = answers;
+    state.mode = mode; state.seed = seed; state.deck = deck; state.answers = answers;
     renderResult(computeScores(deck, answers));
     show("result");
     return true;
