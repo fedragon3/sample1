@@ -97,6 +97,20 @@
   /* 결과 */
   .chart-wrap { display: grid; place-items: center; margin: 8px 0 20px; }
   svg { max-width: 100%; height: auto; }
+  .quality { margin: 4px 0 22px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--accent) 5%, transparent); }
+  .q-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .q-title { font-weight: 800; font-size: 1rem; }
+  .q-badge { font-size: .72rem; font-weight: 800; padding: 2px 11px; border-radius: 999px; }
+  .q-badge.q-good { background: var(--lo-bg); color: var(--lo); }
+  .q-badge.q-bad { background: var(--hi-bg); color: var(--hi); }
+  .q-note { margin: 2px 0 10px; font-size: .88rem; color: var(--ink); }
+  .q-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+  .q-list li { font-size: .84rem; padding-left: 22px; position: relative; color: var(--muted); }
+  .q-list li::before { position: absolute; left: 2px; font-weight: 700; }
+  .q-list li.q-ok::before { content: "✓"; color: #4a9a6a; }
+  .q-list li.q-warn::before { content: "!"; color: var(--hi); }
+  .q-foot { margin: 0; font-size: .76rem; color: var(--muted); line-height: 1.5; }
   .summary { margin: 4px 0 24px; display: grid; gap: 10px; }
   .sum-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .sum-lbl { font-size: .8rem; font-weight: 700; color: var(--muted); min-width: 104px; }
@@ -149,14 +163,14 @@
       <button class="mode" data-mode="short">
         <span class="m-badge">간단 테스트</span>
         <h3>빠르게 알아보기</h3>
-        <div class="m-meta">28문항 · 약 3~4분</div>
+        <div class="m-meta">28문항 (+신뢰도 확인) · 약 4분</div>
         <div class="m-desc">7가지 차원의 큰 그림을 빠르게 확인합니다. 처음이라면 여기서 시작하세요.</div>
         <span class="m-go">시작하기 →</span>
       </button>
       <button class="mode rec" data-mode="full">
         <span class="m-badge">심화 테스트</span>
         <h3>자세히 분석하기</h3>
-        <div class="m-meta">140문항 · 약 12~15분</div>
+        <div class="m-meta">140문항 (+신뢰도 확인) · 약 12~15분</div>
         <div class="m-desc">각 차원을 28개 하위척도까지 세분화해 나의 성향을 정밀하게 분석합니다.</div>
         <span class="m-go">시작하기 →</span>
       </button>
@@ -196,6 +210,7 @@
     <p class="muted small">점수는 각 차원·하위척도에서 응답이 얼마나 그 방향에 가까운지를 0~100%로 나타냅니다.
       높고 낮음에 좋고 나쁨은 없습니다.</p>
     <div class="chart-wrap" id="chartWrap"></div>
+    <div class="quality" id="quality"></div>
     <div class="summary" id="summary"></div>
     <div id="dims"></div>
     <div class="actions">

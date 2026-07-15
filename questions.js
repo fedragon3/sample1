@@ -260,6 +260,17 @@ const QUESTIONS = [
 // 각 문항에 소속 차원(d)을 facet 정보로 채워 넣는다.
 QUESTIONS.forEach((q) => { q.d = FACETS[q.f].dim; });
 
+/*
+ * 응답 신뢰도(참고용) 확인 문항 — 성격 점수에는 반영하지 않는다(check:true).
+ *  - expect: 성의 있게 응답할 때 기대되는 보기 값(1~5)
+ *  - |응답 - expect| >= 2 이면 "놓침"으로 간주
+ * 간단 테스트는 첫 1개, 심화 테스트는 2개를 섞어 넣는다.
+ */
+const CHECKS = [
+  { check: true, t: "나는 태어나서 지금까지 한 번도 잠을 잔 적이 없다.", expect: 1 },
+  { check: true, t: "성의 있게 응답하고 있다면, 이 문항만은 '매우 그렇다'를 선택해 주세요.", expect: 5 },
+];
+
 if (typeof module !== "undefined") {
-  module.exports = { DIMENSIONS, FACETS, QUESTIONS };
+  module.exports = { DIMENSIONS, FACETS, QUESTIONS, CHECKS };
 }

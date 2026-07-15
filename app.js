@@ -34,9 +34,11 @@
   }
 
   // === 문항 덱 구성 (mode + seed 에 대한 순수 함수 → 링크로 순서까지 재현) ===
-  // pool 순서는 고정, seed 로 Fisher–Yates 셔플하여 매 검사 순서를 무작위화한다.
+  // 성향 문항 + 신뢰도 확인 문항(간단 1 / 심화 2)을 합쳐 seed 로 셔플한다.
   function buildDeck(mode, seed) {
-    const deck = (mode === "full" ? QUESTIONS : QUESTIONS.filter((q) => q.short)).slice();
+    const base = mode === "full" ? QUESTIONS : QUESTIONS.filter((q) => q.short);
+    const checks = mode === "full" ? CHECKS.slice(0, 2) : CHECKS.slice(0, 1);
+    const deck = base.concat(checks);
     const rnd = mulberry32(seed);
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(rnd() * (i + 1));
@@ -130,6 +132,7 @@
     const dim = {}, fac = {};
     DIM_ORDER.forEach((d) => (dim[d] = { sum: 0, n: 0 }));
     deck.forEach((q, i) => {
+      if (q.check) return; // 신뢰도 확인 문항은 점수에서 제외
       let v = answers[i] || 3;
       if (q.reverse) v = 6 - v;
       dim[q.d].sum += v; dim[q.d].n += 1;
@@ -149,6 +152,63 @@
     return { txt: "낮음", cls: "lv-lo" };
   }
 
+  // === 응답 신뢰도(참고용) 분석 — 임상 타당성 척도가 아닌 품질 휴리스틱 ===
+  function computeQuality(deck, answers) {
+    // (1) 주의 문항 통과 여부
+    let checkTotal = 0, checkPass = 0;
+    // (2) 직선 응답: 성향 문항의 최대 연속 동일 응답 + 중앙값 비율
+    const sub = [];
+    deck.forEach((q, i) => {
+      const a = answers[i];
+      if (q.check) {
+        checkTotal++;
+        if (Math.abs(a - q.expect) < 2) checkPass++;
+      } else {
+        sub.push(a);
+      }
+    });
+    let run = 1, maxRun = sub.length ? 1 : 0;
+    for (let i = 1; i < sub.length; i++) {
+      if (sub[i] === sub[i - 1]) { run++; if (run > maxRun) maxRun = run; }
+      else run = 1;
+    }
+    const midRatio = sub.length ? sub.filter((v) => v === 3).length / sub.length : 0;
+
+    // (3) 내적 일관성(심화 전용): facet별 |정방향평균 + 역방향평균 - 6|
+    let contradictions = null, facetCount = 0;
+    if (state.mode === "full") {
+      const byF = {};
+      deck.forEach((q, i) => {
+        if (q.check) return;
+        if (!byF[q.f]) byF[q.f] = { f: [], r: [] };
+        byF[q.f][q.reverse ? "r" : "f"].push(answers[i]);
+      });
+      contradictions = 0;
+      Object.keys(byF).forEach((f) => {
+        const o = byF[f];
+        if (!o.f.length || !o.r.length) return;
+        facetCount++;
+        const mF = o.f.reduce((s, v) => s + v, 0) / o.f.length;
+        const mR = o.r.reduce((s, v) => s + v, 0) / o.r.length;
+        if (Math.abs(mF + mR - 6) >= 2.5) contradictions++;
+      });
+    }
+
+    // 종합 판정(휴리스틱 임계값)
+    const strThresh = state.mode === "full" ? 12 : 7;
+    const flags = [];
+    if (checkTotal && checkPass < checkTotal) flags.push("주의 문항 놓침");
+    if (maxRun >= strThresh) flags.push("한 보기 연속 응답");
+    if (midRatio > 0.6) flags.push("'보통' 응답 과다");
+    if (contradictions !== null && contradictions >= 5) flags.push("상반 응답 다수");
+
+    return {
+      verdict: flags.length ? "주의" : "양호",
+      flags, checkTotal, checkPass, maxRun, strThresh,
+      midRatio, contradictions, facetCount,
+    };
+  }
+
   function finish() {
     // 형식: r=<F|S><seed(36진)>-<응답숫자열>  (mode·순서·응답을 모두 담아 링크로 재현)
     const code = (state.mode === "full" ? "F" : "S") + state.seed.toString(36) + "-" + state.answers.join("");
@@ -159,8 +219,10 @@
 
   // === 결과 렌더 ===
   function renderResult(scores) {
-    $("resultMode").textContent = state.mode === "full" ? "심화 검사 · 140문항" : "간단 검사 · 28문항";
+    const nSub = state.deck.filter((q) => !q.check).length;
+    $("resultMode").textContent = (state.mode === "full" ? "심화 검사" : "간단 검사") + " · " + nSub + "문항";
     $("chartWrap").innerHTML = radarSVG(scores.dim);
+    renderQuality(computeQuality(state.deck, state.answers));
 
     const hasFacets = state.mode === "full";
     const dims = $("dims");
@@ -212,6 +274,35 @@
 
     // 상위/하위 특성 요약
     renderSummary(scores.dim);
+  }
+
+  function renderQuality(q) {
+    const ok = q.verdict === "양호";
+    const lines = [];
+    if (q.checkTotal) {
+      const pass = q.checkPass === q.checkTotal;
+      lines.push(`<li class="${pass ? "q-ok" : "q-warn"}">주의 문항 ${q.checkPass}/${q.checkTotal} 통과</li>`);
+    }
+    const strWarn = q.maxRun >= q.strThresh;
+    lines.push(`<li class="${strWarn ? "q-warn" : "q-ok"}">같은 보기 최대 연속 ${q.maxRun}회${strWarn ? " (다소 많음)" : ""}</li>`);
+    if (q.contradictions !== null) {
+      const cWarn = q.contradictions >= 5;
+      lines.push(`<li class="${cWarn ? "q-warn" : "q-ok"}">상반된 문항 간 모순 신호 ${q.contradictions} / ${q.facetCount}</li>`);
+    }
+    if (q.midRatio > 0.6) {
+      lines.push(`<li class="q-warn">'보통' 응답 비율 ${Math.round(q.midRatio * 100)}% (다소 높음)</li>`);
+    }
+    const note = ok
+      ? "응답 패턴이 대체로 일관됩니다."
+      : "일부 응답이 패턴적이거나 주의 문항을 놓쳤을 수 있어요. 결과를 참고로만 보세요.";
+    $("quality").innerHTML = `
+      <div class="q-head">
+        <span class="q-title">응답 신뢰도</span>
+        <span class="q-badge ${ok ? "q-good" : "q-bad"}">${q.verdict}</span>
+      </div>
+      <p class="q-note">${note}</p>
+      <ul class="q-list">${lines.join("")}</ul>
+      <p class="q-foot">임상적 타당성 척도가 아니라, 성의 없는 응답을 걸러내기 위한 참고용 품질 지표입니다.</p>`;
   }
 
   function renderSummary(dimScores) {
