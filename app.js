@@ -10,37 +10,61 @@
     { v: 5, label: "매우 그렇다" },
   ];
   const DIM_ORDER = ["NS", "HA", "RD", "PS", "SD", "CO", "ST"];
+  const SHORT = { NS: "자극추구", HA: "위험회피", RD: "사회성", PS: "인내력", SD: "자율성", CO: "연대감", ST: "자기초월" };
 
   const state = {
+    mode: "short",   // 'short' | 'full'
+    deck: [],        // 이번 검사의 문항 배열
     idx: 0,
-    answers: new Array(QUESTIONS.length).fill(0), // 0 = 미응답
+    answers: [],     // deck 와 같은 길이, 0 = 미응답
   };
 
-  // --- DOM ---
   const $ = (id) => document.getElementById(id);
   const intro = $("intro"), quiz = $("quiz"), result = $("result");
 
-  $("qcount").textContent = QUESTIONS.length;
-  $("progLabel").textContent = `1 / ${QUESTIONS.length}`;
+  // === 문항 덱 구성 (모드에 대해 순수 함수 → 링크 복원 시 재현 가능) ===
+  // 차원별로 묶은 뒤 라운드로빈으로 섞어 같은 차원이 연속되지 않게 한다(결정적).
+  function buildDeck(mode) {
+    const pool = mode === "full" ? QUESTIONS : QUESTIONS.filter((q) => q.short);
+    const groups = {};
+    DIM_ORDER.forEach((d) => (groups[d] = []));
+    pool.forEach((q) => groups[q.d].push(q));
+    const deck = [];
+    let more = true, i = 0;
+    while (more) {
+      more = false;
+      for (const d of DIM_ORDER) {
+        if (i < groups[d].length) { deck.push(groups[d][i]); more = true; }
+      }
+      i++;
+    }
+    return deck;
+  }
 
-  // --- 이벤트 ---
-  $("startBtn").addEventListener("click", () => show("quiz"));
+  // === 이벤트 ===
+  document.querySelectorAll("[data-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => startTest(btn.getAttribute("data-mode")));
+  });
   $("retryBtn").addEventListener("click", () => {
-    state.idx = 0;
-    state.answers.fill(0);
     history.replaceState(null, "", location.pathname);
     show("intro");
   });
-  $("prevBtn").addEventListener("click", () => {
-    if (state.idx > 0) { state.idx--; renderQuestion(); }
-  });
-  $("nextBtn").addEventListener("click", () => {
-    if (state.answers[state.idx] === 0) return;
-    advance();
-  });
+  $("prevBtn").addEventListener("click", () => { if (state.idx > 0) { state.idx--; renderQuestion(); } });
+  $("nextBtn").addEventListener("click", () => { if (state.answers[state.idx] !== 0) advance(); });
   $("copyBtn").addEventListener("click", copyResultLink);
+  $("abortBtn").addEventListener("click", () => {
+    if (confirm("검사를 중단하고 처음으로 돌아갈까요? 지금까지의 응답은 사라집니다.")) show("intro");
+  });
 
-  // --- 화면 전환 ---
+  function startTest(mode) {
+    state.mode = mode === "full" ? "full" : "short";
+    state.deck = buildDeck(state.mode);
+    state.answers = new Array(state.deck.length).fill(0);
+    state.idx = 0;
+    show("quiz");
+  }
+
+  // === 화면 전환 ===
   function show(which) {
     intro.classList.toggle("hidden", which !== "intro");
     quiz.classList.toggle("hidden", which !== "quiz");
@@ -49,11 +73,11 @@
     if (which === "quiz") renderQuestion();
   }
 
-  // --- 문항 렌더 ---
+  // === 문항 렌더 ===
   function renderQuestion() {
     const i = state.idx;
-    const q = QUESTIONS[i];
-    const total = QUESTIONS.length;
+    const q = state.deck[i];
+    const total = state.deck.length;
     const pct = Math.round(((i + 1) / total) * 100);
 
     $("progLabel").textContent = `${i + 1} / ${total}`;
@@ -69,14 +93,12 @@
       b.innerHTML = `<span class="dot"></span><span class="lbl">${opt.label}</span>`;
       b.addEventListener("click", () => {
         state.answers[i] = opt.v;
-        // 선택 즉시 반영 후 짧은 딜레이로 자동 진행
         renderQuestion();
-        setTimeout(advance, 220);
+        setTimeout(advance, 200);
       });
       box.appendChild(b);
     });
 
-    $("prevBtn").disabled = i === 0;
     $("prevBtn").style.visibility = i === 0 ? "hidden" : "visible";
     const isLast = i === total - 1;
     const nextBtn = $("nextBtn");
@@ -85,65 +107,85 @@
   }
 
   function advance() {
-    if (state.idx < QUESTIONS.length - 1) {
+    if (state.idx < state.deck.length - 1) {
       state.idx++;
       renderQuestion();
     } else if (state.answers.every((a) => a !== 0)) {
       finish();
     } else {
-      // 미응답 문항으로 이동
-      const miss = state.answers.findIndex((a) => a === 0);
-      state.idx = miss;
+      state.idx = state.answers.findIndex((a) => a === 0);
       renderQuestion();
       toast("아직 응답하지 않은 문항이 있어요");
     }
   }
 
-  // --- 채점 ---
-  function scoreFrom(answers) {
-    const acc = {}; // dim -> {sum, count}
-    DIM_ORDER.forEach((d) => (acc[d] = { sum: 0, count: 0 }));
-    QUESTIONS.forEach((q, i) => {
-      let v = answers[i];
-      if (!v) v = 3; // 안전장치: 미응답은 중앙값
-      if (q.reverse) v = 6 - v; // 1<->5 역채점
-      acc[q.d].sum += v;
-      acc[q.d].count += 1;
+  // === 채점 ===
+  // deck + answers 로부터 차원별·하위척도별 점수(0~100) 계산
+  function computeScores(deck, answers) {
+    const dim = {}, fac = {};
+    DIM_ORDER.forEach((d) => (dim[d] = { sum: 0, n: 0 }));
+    deck.forEach((q, i) => {
+      let v = answers[i] || 3;
+      if (q.reverse) v = 6 - v;
+      dim[q.d].sum += v; dim[q.d].n += 1;
+      if (!fac[q.f]) fac[q.f] = { sum: 0, n: 0 };
+      fac[q.f].sum += v; fac[q.f].n += 1;
     });
-    const out = {};
-    DIM_ORDER.forEach((d) => {
-      const { sum, count } = acc[d];
-      const min = count * 1, max = count * 5;
-      out[d] = Math.round(((sum - min) / (max - min)) * 100);
-    });
-    return out;
+    const pct = (o) => Math.round(((o.sum - o.n) / (o.n * 4)) * 100);
+    const dimOut = {}, facOut = {};
+    DIM_ORDER.forEach((d) => (dimOut[d] = pct(dim[d])));
+    Object.keys(fac).forEach((f) => (facOut[f] = pct(fac[f])));
+    return { dim: dimOut, fac: facOut };
   }
 
   function levelOf(p) {
-    if (p >= 67) return { txt: "높음", bg: "#e05a4722", fg: "#c0432f" };
-    if (p >= 34) return { txt: "보통", bg: "#88888822", fg: "var(--muted)" };
-    return { txt: "낮음", bg: "#4a7bb522", fg: "#3a6aa5" };
+    if (p >= 67) return { txt: "높음", cls: "lv-hi" };
+    if (p >= 34) return { txt: "보통", cls: "lv-mid" };
+    return { txt: "낮음", cls: "lv-lo" };
   }
 
   function finish() {
-    const scores = scoreFrom(state.answers);
-    // URL에 응답 저장 (숫자 이어붙이기)
-    const code = state.answers.join("");
+    const code = (state.mode === "full" ? "F" : "S") + state.answers.join("");
     history.replaceState(null, "", location.pathname + "#r=" + code);
-    renderResult(scores);
+    renderResult(computeScores(state.deck, state.answers));
     show("result");
   }
 
-  // --- 결과 렌더 ---
+  // === 결과 렌더 ===
   function renderResult(scores) {
-    $("chartWrap").innerHTML = radarSVG(scores);
+    $("resultMode").textContent = state.mode === "full" ? "심화 검사 · 140문항" : "간단 검사 · 28문항";
+    $("chartWrap").innerHTML = radarSVG(scores.dim);
+
+    const hasFacets = state.mode === "full";
     const dims = $("dims");
     dims.innerHTML = "";
+
     DIM_ORDER.forEach((d) => {
       const info = DIMENSIONS[d];
-      const p = scores[d];
+      const p = scores.dim[d];
       const lv = levelOf(p);
       const desc = p >= 50 ? info.high : info.low;
+
+      let facetHTML = "";
+      if (hasFacets) {
+        const rows = Object.keys(FACETS)
+          .filter((f) => FACETS[f].dim === d)
+          .map((f) => {
+            const fp = scores.fac[f];
+            const flv = levelOf(fp);
+            return `
+              <div class="facet">
+                <div class="facet-top">
+                  <span class="facet-name">${FACETS[f].name}</span>
+                  <span class="facet-num">${fp}%</span>
+                </div>
+                <div class="score-bar sm"><span style="width:${fp}%;background:${info.color}"></span></div>
+                <div class="facet-desc">${FACETS[f].desc} · <span class="lvtag ${flv.cls}">${flv.txt}</span></div>
+              </div>`;
+          }).join("");
+        facetHTML = `<div class="facets">${rows}</div>`;
+      }
+
       const el = document.createElement("div");
       el.className = "dim";
       el.innerHTML = `
@@ -151,62 +193,65 @@
           <span class="dim-name" style="color:${info.color}">${info.name}</span>
           <span class="dim-en">${info.en}</span>
           <span class="dim-type">${info.type}</span>
+          <span class="level ${lv.cls}">${lv.txt}</span>
         </div>
         <div class="score-row">
           <div class="score-bar"><span style="width:${p}%;background:${info.color}"></span></div>
           <span class="score-num">${p}%</span>
-          <span class="level" style="background:${lv.bg};color:${lv.fg}">${lv.txt}</span>
         </div>
-        <p class="muted small">${desc}</p>`;
+        <p class="muted small dim-desc">${desc}</p>
+        ${facetHTML}`;
       dims.appendChild(el);
     });
+
+    // 상위/하위 특성 요약
+    renderSummary(scores.dim);
   }
 
-  // --- 레이더 차트 (순수 SVG) ---
-  const SHORT = { NS: "자극추구", HA: "위험회피", RD: "사회성", PS: "인내력", SD: "자율성", CO: "연대감", ST: "자기초월" };
-  function radarSVG(scores) {
+  function renderSummary(dimScores) {
+    const sorted = DIM_ORDER.slice().sort((a, b) => dimScores[b] - dimScores[a]);
+    const top = sorted.slice(0, 2), bottom = sorted.slice(-2).reverse();
+    const chip = (d) => `<span class="chip" style="border-color:${DIMENSIONS[d].color};color:${DIMENSIONS[d].color}">${DIMENSIONS[d].name} ${dimScores[d]}%</span>`;
+    $("summary").innerHTML =
+      `<div class="sum-row"><span class="sum-lbl">두드러지는 특성</span>${top.map(chip).join("")}</div>` +
+      `<div class="sum-row"><span class="sum-lbl">낮게 나타난 특성</span>${bottom.map(chip).join("")}</div>`;
+  }
+
+  // === 레이더 차트 (순수 SVG) ===
+  function radarSVG(dimScores) {
     const cx = 170, cy = 170, R = 122;
     const n = DIM_ORDER.length;
-    const angle = (i) => (Math.PI * 2 * i) / n - Math.PI / 2;
-    const pt = (i, r) => [cx + Math.cos(angle(i)) * r, cy + Math.sin(angle(i)) * r];
-
+    const ang = (i) => (Math.PI * 2 * i) / n - Math.PI / 2;
+    const pt = (i, r) => [cx + Math.cos(ang(i)) * r, cy + Math.sin(ang(i)) * r];
     let g = "";
-    // 그리드 링
-    [0.25, 0.5, 0.75, 1].forEach((f) => {
-      const pts = DIM_ORDER.map((_, i) => pt(i, R * f).map((x) => x.toFixed(1)).join(",")).join(" ");
+    [0.25, 0.5, 0.75, 1].forEach((fr) => {
+      const pts = DIM_ORDER.map((_, i) => pt(i, R * fr).map((x) => x.toFixed(1)).join(",")).join(" ");
       g += `<polygon points="${pts}" fill="none" stroke="var(--line)" stroke-width="1"/>`;
     });
-    // 축선 + 라벨
     DIM_ORDER.forEach((d, i) => {
       const [x, y] = pt(i, R);
       g += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
       const [lx, ly] = pt(i, R + 24);
       let anchor = "middle";
-      if (lx > cx + 5) anchor = "start";
-      else if (lx < cx - 5) anchor = "end";
-      g += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}"
-        font-size="12.5" font-weight="700" fill="${DIMENSIONS[d].color}">${SHORT[d]}</text>`;
+      if (lx > cx + 5) anchor = "start"; else if (lx < cx - 5) anchor = "end";
+      g += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}" font-size="12.5" font-weight="700" fill="${DIMENSIONS[d].color}">${SHORT[d]}</text>`;
     });
-    // 데이터 폴리곤
-    const dpts = DIM_ORDER.map((d, i) => pt(i, R * (scores[d] / 100)).map((x) => x.toFixed(1)).join(",")).join(" ");
+    const dpts = DIM_ORDER.map((d, i) => pt(i, R * (dimScores[d] / 100)).map((x) => x.toFixed(1)).join(",")).join(" ");
     g += `<polygon points="${dpts}" fill="rgba(122,92,196,0.22)" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
     DIM_ORDER.forEach((d, i) => {
-      const [x, y] = pt(i, R * (scores[d] / 100));
+      const [x, y] = pt(i, R * (dimScores[d] / 100));
       g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${DIMENSIONS[d].color}" stroke="var(--card)" stroke-width="1.5"/>`;
     });
-
     return `<svg viewBox="-38 -8 416 356" width="360" height="330" role="img" aria-label="7차원 레이더 차트">${g}</svg>`;
   }
 
-  // --- 링크 복사 ---
+  // === 링크 복사 ===
   function copyResultLink() {
     const url = location.href;
     const done = () => toast("결과 링크가 복사되었습니다 ✓");
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
-    } else {
-      fallbackCopy(url, done);
-    }
+    } else fallbackCopy(url, done);
   }
   function fallbackCopy(text, cb) {
     const ta = document.createElement("textarea");
@@ -219,22 +264,23 @@
   let toastTimer;
   function toast(msg) {
     const t = $("toast");
-    t.textContent = msg;
-    t.classList.add("show");
+    t.textContent = msg; t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
   }
 
-  // --- 공유된 결과 링크로 진입 시 복원 ---
+  // === 공유 링크로 진입 시 결과 복원 ===
   function tryRestore() {
-    const m = location.hash.match(/r=(\d+)/);
+    const m = location.hash.match(/r=([FS])(\d+)/);
     if (!m) return false;
-    const code = m[1];
-    if (code.length !== QUESTIONS.length) return false;
-    const answers = code.split("").map(Number);
+    const mode = m[1] === "F" ? "full" : "short";
+    const digits = m[2];
+    const deck = buildDeck(mode);
+    if (digits.length !== deck.length) return false;
+    const answers = digits.split("").map(Number);
     if (answers.some((a) => a < 1 || a > 5)) return false;
-    state.answers = answers;
-    renderResult(scoreFrom(answers));
+    state.mode = mode; state.deck = deck; state.answers = answers;
+    renderResult(computeScores(deck, answers));
     show("result");
     return true;
   }

@@ -4,137 +4,134 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>기질·성격 자가탐색 검사 (TCI 기반)</title>
-<meta name="description" content="Cloninger의 TCI 7차원 이론에 기반한 무료 온라인 기질·성격 자가탐색 검사. 설치 없이 브라우저에서 바로 이용하세요." />
+<meta name="description" content="Cloninger의 TCI 7차원·28하위척도 이론에 기반한 무료 온라인 기질·성격 자가탐색 검사. 간단(28문항)·심화(140문항) 두 가지 모드." />
 <style>
   :root {
-    --bg: #f5f3ee;
-    --card: #ffffff;
-    --ink: #2a2a2e;
-    --muted: #6b6b73;
-    --line: #e5e1d8;
-    --accent: #7a5cc4;
-    --accent-ink: #ffffff;
-    --shadow: 0 8px 30px rgba(30, 20, 50, 0.08);
-    --radius: 18px;
+    --bg: #f5f3ee; --card: #ffffff; --ink: #2a2a2e; --muted: #6b6b73;
+    --line: #e5e1d8; --accent: #7a5cc4; --accent-ink: #ffffff;
+    --shadow: 0 8px 30px rgba(30, 20, 50, 0.08); --radius: 18px;
+    --hi: #c0432f; --hi-bg: #e05a4718; --mid: #6b6b73; --mid-bg: #8888881f; --lo: #3a6aa5; --lo-bg: #4a7bb518;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #17161a;
-      --card: #211f26;
-      --ink: #ece9f0;
-      --muted: #a29fac;
-      --line: #34313c;
-      --accent: #a98cf0;
-      --accent-ink: #1a1620;
+      --bg: #17161a; --card: #211f26; --ink: #ece9f0; --muted: #a29fac;
+      --line: #34313c; --accent: #a98cf0; --accent-ink: #1a1620;
       --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      --hi: #f0917f; --hi-bg: #e05a4722; --lo: #8fb4e6; --lo-bg: #4a7bb522;
     }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--ink);
+    background: var(--bg); color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
       "Malgun Gothic", "Noto Sans KR", Roboto, sans-serif;
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
+    line-height: 1.65; -webkit-font-smoothing: antialiased;
   }
-  .wrap {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 28px 20px 80px;
-  }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 32px 28px;
-  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 80px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 32px 28px; }
   h1 { font-size: 1.7rem; line-height: 1.3; margin: 0 0 6px; letter-spacing: -0.02em; }
-  h2 { font-size: 1.25rem; margin: 0 0 14px; letter-spacing: -0.01em; }
   p { margin: 0 0 14px; }
   .muted { color: var(--muted); }
   .small { font-size: 0.86rem; }
-  .tag {
-    display: inline-block; font-size: 0.75rem; font-weight: 700;
-    padding: 3px 10px; border-radius: 999px; background: var(--accent);
-    color: var(--accent-ink); letter-spacing: 0.03em; margin-bottom: 16px;
-  }
-  .btn {
-    appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
-    background: var(--accent); color: var(--accent-ink);
-    padding: 14px 26px; border-radius: 999px; transition: transform .06s ease, opacity .2s;
-    box-shadow: 0 4px 14px rgba(122, 92, 196, 0.28);
-  }
-  .btn:hover { opacity: .92; }
-  .btn:active { transform: translateY(1px); }
+  .tag { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; background: var(--accent); color: var(--accent-ink); letter-spacing: 0.03em; margin-bottom: 16px; }
+  .btn { appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+    background: var(--accent); color: var(--accent-ink); padding: 14px 26px; border-radius: 999px;
+    transition: transform .06s ease, opacity .2s; box-shadow: 0 4px 14px rgba(122, 92, 196, 0.28); }
+  .btn:hover { opacity: .92; } .btn:active { transform: translateY(1px); }
   .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-  .btn-ghost {
-    background: transparent; color: var(--ink); box-shadow: none;
-    border: 1px solid var(--line);
-  }
+  .btn-ghost { background: transparent; color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
   .center { text-align: center; }
-  .disclaimer {
-    margin-top: 22px; padding: 14px 16px; border-radius: 12px;
-    background: color-mix(in srgb, var(--accent) 8%, transparent);
-    border: 1px dashed var(--line); font-size: 0.84rem; color: var(--muted);
-  }
-  ul.feat { list-style: none; padding: 0; margin: 20px 0; }
-  ul.feat li { padding: 8px 0 8px 30px; position: relative; }
-  ul.feat li::before {
-    content: "✦"; position: absolute; left: 4px; color: var(--accent); font-weight: 700;
-  }
+  .disclaimer { margin-top: 22px; padding: 14px 16px; border-radius: 12px;
+    background: color-mix(in srgb, var(--accent) 8%, transparent); border: 1px dashed var(--line);
+    font-size: 0.84rem; color: var(--muted); }
+  a { color: var(--accent); }
 
-  /* progress */
-  .progress-head { display: flex; justify-content: space-between; align-items: baseline;
-    margin-bottom: 10px; font-size: .85rem; color: var(--muted); }
+  /* 모드 선택 카드 */
+  .modes { display: grid; gap: 14px; margin: 22px 0 8px; }
+  @media (min-width: 560px) { .modes { grid-template-columns: 1fr 1fr; } }
+  .mode {
+    text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+    background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 20px 20px 22px;
+    transition: border-color .15s, transform .06s, box-shadow .2s; position: relative;
+  }
+  .mode:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(122,92,196,.14); }
+  .mode:active { transform: scale(.99); }
+  .mode .m-badge { font-size: .72rem; font-weight: 800; letter-spacing: .04em; color: var(--accent); }
+  .mode h3 { margin: 6px 0 4px; font-size: 1.22rem; letter-spacing: -0.01em; }
+  .mode .m-meta { font-size: .82rem; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+  .mode .m-desc { font-size: .88rem; color: var(--muted); line-height: 1.55; }
+  .mode .m-go { margin-top: 14px; display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 700; color: var(--accent); font-size: .9rem; }
+  .mode.rec { border-color: var(--accent); }
+  .mode.rec .m-badge::after { content: " · 추천"; }
+
+  ul.feat { list-style: none; padding: 0; margin: 18px 0 4px; }
+  ul.feat li { padding: 6px 0 6px 28px; position: relative; font-size: .92rem; }
+  ul.feat li::before { content: "✦"; position: absolute; left: 4px; color: var(--accent); font-weight: 700; }
+
+  /* 진행 */
+  .qtop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .progress-head { font-size: .85rem; color: var(--muted); }
+  .link-abort { background: none; border: 0; color: var(--muted); font: inherit; font-size: .82rem;
+    cursor: pointer; text-decoration: underline; padding: 4px; }
   .bar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 26px; }
   .bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
-
-  .qtext { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em;
-    min-height: 3.4em; display: flex; align-items: center; margin-bottom: 8px; }
-
+  .qtext { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em; min-height: 3.4em;
+    display: flex; align-items: center; margin-bottom: 8px; }
   .likert { display: grid; gap: 10px; margin: 18px 0 8px; }
-  .opt {
-    display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-    padding: 15px 18px; border-radius: 14px; border: 1.5px solid var(--line);
-    background: var(--card); color: var(--ink); cursor: pointer; font: inherit;
-    transition: border-color .15s, background .15s, transform .06s;
-  }
-  .opt:hover { border-color: var(--accent); }
-  .opt:active { transform: scale(.99); }
+  .opt { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 15px 18px;
+    border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    cursor: pointer; font: inherit; transition: border-color .15s, background .15s, transform .06s; }
+  .opt:hover { border-color: var(--accent); } .opt:active { transform: scale(.99); }
   .opt.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-  .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted);
-    flex: 0 0 auto; display: grid; place-items: center; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--muted); flex: 0 0 auto;
+    display: grid; place-items: center; }
   .opt.sel .dot { border-color: var(--accent); }
   .opt.sel .dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
   .opt .lbl { font-weight: 500; }
-
   .nav { display: flex; justify-content: space-between; margin-top: 22px; gap: 12px; }
 
-  /* results */
-  .chart-wrap { display: grid; place-items: center; margin: 8px 0 26px; }
+  /* 결과 */
+  .chart-wrap { display: grid; place-items: center; margin: 8px 0 20px; }
   svg { max-width: 100%; height: auto; }
+  .summary { margin: 4px 0 24px; display: grid; gap: 10px; }
+  .sum-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .sum-lbl { font-size: .8rem; font-weight: 700; color: var(--muted); min-width: 104px; }
+  .chip { font-size: .82rem; font-weight: 700; padding: 4px 11px; border-radius: 999px; border: 1.5px solid; }
   .dim { border-top: 1px solid var(--line); padding: 20px 0; }
   .dim:first-of-type { border-top: 0; }
-  .dim-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
-  .dim-name { font-weight: 700; font-size: 1.08rem; }
+  .dim-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .dim-name { font-weight: 800; font-size: 1.1rem; }
   .dim-en { color: var(--muted); font-size: .82rem; }
-  .dim-type { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-    border: 1px solid var(--line); color: var(--muted); }
+  .dim-type, .level { font-size: .7rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+  .dim-type { border: 1px solid var(--line); color: var(--muted); }
+  .level { margin-left: auto; }
+  .lv-hi { background: var(--hi-bg); color: var(--hi); }
+  .lv-mid { background: var(--mid-bg); color: var(--mid); }
+  .lv-lo { background: var(--lo-bg); color: var(--lo); }
   .score-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
   .score-bar { flex: 1; height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .score-bar.sm { height: 8px; }
   .score-bar > span { display: block; height: 100%; border-radius: 999px; }
-  .score-num { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 46px; text-align: right; }
-  .level { font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+  .score-num { font-variant-numeric: tabular-nums; font-weight: 800; min-width: 46px; text-align: right; }
+  .dim-desc { margin: 6px 0 0; }
+  .facets { margin: 16px 0 2px; padding: 16px; background: color-mix(in srgb, var(--accent) 5%, transparent);
+    border-radius: 14px; display: grid; gap: 14px; }
+  @media (min-width: 560px) { .facets { grid-template-columns: 1fr 1fr; gap: 14px 22px; } }
+  .facet-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+  .facet-name { font-weight: 700; font-size: .95rem; }
+  .facet-num { font-variant-numeric: tabular-nums; font-weight: 800; font-size: .9rem; }
+  .facet-desc { font-size: .8rem; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .lvtag { font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: .72rem; }
   .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
-  a { color: var(--accent); }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
-    background: var(--ink); color: var(--bg); padding: 12px 22px; border-radius: 999px;
-    font-size: .88rem; font-weight: 600; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50; }
+    background: var(--ink); color: var(--bg); padding: 12px 22px; border-radius: 999px; font-size: .88rem;
+    font-weight: 600; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -145,17 +142,32 @@
   <section id="intro" class="card">
     <span class="tag">무료 · 설치 불필요</span>
     <h1>기질·성격 자가탐색 검사</h1>
-    <p class="muted">Cloninger의 <strong>TCI 7차원 이론</strong>에 기반한 온라인 자가탐색 도구입니다.
-      나의 타고난 기질과 후천적으로 발달한 성격을 7가지 축으로 살펴보세요.</p>
+    <p class="muted">Cloninger의 <strong>TCI 7차원 · 28개 하위척도 이론</strong>에 기반한 온라인 자가탐색 도구입니다.
+      원하는 깊이의 검사를 선택하세요.</p>
+
+    <div class="modes">
+      <button class="mode" data-mode="short">
+        <span class="m-badge">간단 테스트</span>
+        <h3>빠르게 알아보기</h3>
+        <div class="m-meta">28문항 · 약 3~4분</div>
+        <div class="m-desc">7가지 차원의 큰 그림을 빠르게 확인합니다. 처음이라면 여기서 시작하세요.</div>
+        <span class="m-go">시작하기 →</span>
+      </button>
+      <button class="mode rec" data-mode="full">
+        <span class="m-badge">심화 테스트</span>
+        <h3>자세히 분석하기</h3>
+        <div class="m-meta">140문항 · 약 12~15분</div>
+        <div class="m-desc">각 차원을 28개 하위척도까지 세분화해 나의 성향을 정밀하게 분석합니다.</div>
+        <span class="m-go">시작하기 →</span>
+      </button>
+    </div>
+
     <ul class="feat">
-      <li>총 <strong id="qcount">35</strong>문항 · 약 5~7분 소요</li>
-      <li>7가지 차원(자극추구·위험회피·사회적 민감성·인내력·자율성·연대감·자기초월)</li>
-      <li>결과는 레이더 차트와 함께 즉시 확인 · 링크로 저장·공유 가능</li>
+      <li>결과는 레이더 차트 + 차원·하위척도별 해석으로 즉시 확인</li>
+      <li>응답이 링크에 담겨 <strong>링크만으로 결과 저장·공유</strong> 가능</li>
       <li>서버 전송 없음 — 모든 응답은 내 브라우저에서만 처리됩니다</li>
     </ul>
-    <div class="center">
-      <button class="btn" id="startBtn">검사 시작하기</button>
-    </div>
+
     <div class="disclaimer">
       ⚠️ 본 검사는 교육 및 자기이해를 위한 <strong>비공식 자가탐색 도구</strong>입니다.
       정식 TCI 검사 문항이 아니며, 심리 상담이나 임상적 진단을 대체할 수 없습니다.
@@ -164,26 +176,27 @@
 
   <!-- ===== 검사 ===== -->
   <section id="quiz" class="card hidden">
-    <div class="progress-head">
-      <span id="progLabel">1 / 35</span>
-      <span id="progPct">3%</span>
+    <div class="qtop">
+      <span class="progress-head"><span id="progLabel">1 / 28</span> · <span id="progPct">3%</span></span>
+      <button class="link-abort" id="abortBtn">처음으로</button>
     </div>
     <div class="bar"><span id="progFill"></span></div>
     <div class="qtext" id="qText">—</div>
     <div class="likert" id="likert"></div>
     <div class="nav">
       <button class="btn btn-ghost" id="prevBtn">← 이전</button>
-      <button class="btn btn-ghost" id="nextBtn" disabled>건너뛰기 없음</button>
+      <button class="btn btn-ghost" id="nextBtn" disabled>다음 →</button>
     </div>
   </section>
 
   <!-- ===== 결과 ===== -->
   <section id="result" class="card hidden">
-    <span class="tag">검사 결과</span>
+    <span class="tag" id="resultMode">검사 결과</span>
     <h1>나의 기질·성격 프로필</h1>
-    <p class="muted small">점수는 각 차원에서 응답이 얼마나 그 방향에 가까운지를 0~100%로 나타냅니다.
+    <p class="muted small">점수는 각 차원·하위척도에서 응답이 얼마나 그 방향에 가까운지를 0~100%로 나타냅니다.
       높고 낮음에 좋고 나쁨은 없습니다.</p>
     <div class="chart-wrap" id="chartWrap"></div>
+    <div class="summary" id="summary"></div>
     <div id="dims"></div>
     <div class="actions">
       <button class="btn" id="copyBtn">결과 링크 복사</button>
