@@ -215,6 +215,14 @@
   .rsub:first-child { border-top: 0; padding-top: 0; }
   .rsub b { color: var(--accent); }
 
+  /* 대운 표 */
+  .daegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 12px 0; }
+  .dae { text-align: center; border: 1px solid var(--line); border-radius: 12px; padding: 9px 4px; background: var(--card); }
+  .dae.cur { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .dae-age { font-size: .68rem; color: var(--muted); font-weight: 700; margin-bottom: 5px; }
+  .dae-gz { font-size: 1.35rem; font-weight: 800; line-height: 1.1; letter-spacing: 1px; }
+  .dae-ss { font-size: .68rem; color: var(--muted); margin-top: 4px; }
+
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);

@@ -118,8 +118,25 @@ function computeSaju(input) {
     dayMaster: dayStem,          // 일간(日干) = 나 자신
     animal: yearBranch,          // 띠
     lambda,
+    jdUT,                        // 생시(정오 대체) 율리우스일(UT)
     elemCount,
   };
+}
+
+// 천간(s)·지지(b) → 60갑자 순번(0~59)
+function ganziIndex(s, b) {
+  for (let n = 0; n < 60; n++) if (n % 10 === s && n % 12 === b) return n;
+  return 0;
+}
+// 각도 최단 차(-180~180)
+function angDiff(a, target) { return (((a - target) % 360 + 540) % 360) - 180; }
+// 구간 [lo,hi]에서 태양황경이 target 이 되는 JD (lo에서 음, hi에서 양이라고 가정)
+function findTermJD(lo, hi, target) {
+  for (let i = 0; i < 42; i++) {
+    const mid = (lo + hi) / 2;
+    if (angDiff(solarLongitude(mid), target) < 0) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
 }
 
 function pillarText(p) {
@@ -255,6 +272,15 @@ function verdict(n) {
   return { label: "약함", cls: "lv-lo" };
 }
 
+const TEN_GOD_KO = { bigeop: "비겁", siksang: "식상", jae: "재성", inseong: "인성", gwan: "관성" };
+const TEN_GOD_THEME = {
+  bigeop: "자기 주관과 경쟁의 기운이 강해지는 시기입니다. 독립·동업·자기 사업에 관심이 커지되, 지출과 고집은 관리가 필요합니다.",
+  siksang: "표현과 재능을 펼치는 시기입니다. 창작·활동·후배와의 인연이 활발하고, 새로운 시도에서 성취가 따릅니다.",
+  jae: "재물과 현실적 성취의 시기입니다. 일과 재산을 키우기 좋고, 남성에게는 이성·결혼운도 함께 상승합니다.",
+  inseong: "배움과 안정의 시기입니다. 공부·자격·문서·부동산과 인연이 깊고, 윗사람과 귀인의 도움이 따릅니다.",
+  gwan: "책임과 명예의 시기입니다. 승진·직책·시험의 결실이 있으나 부담·스트레스 관리가 관건이며, 여성에게는 인연·결혼운도 함께합니다.",
+};
+
 // 운세 카테고리 배열 생성
 function buildCategories(r) {
   const D = STEM_ELEM[r.dayMaster];
@@ -340,6 +366,59 @@ function buildCategories(r) {
       P(`<span class="muted small">※ 건강 해석은 참고용입니다. 이상 증상이 있으면 반드시 전문의와 상담하세요.</span>`),
   };
 
+  // --- 올해의 운세 (세운) ---
+  const seStem = td.pillars.year.stem, seBranch = td.pillars.year.branch;
+  const seRel = tenGodOf(D, STEM_ELEM[seStem]);
+  const sewoon = {
+    id: "sewoon", label: "올해의 운세", emoji: "📆",
+    badge: { label: `${now.getFullYear()}`, cls: "lv-star" },
+    body: P(`올해는 <b>${STEMS[seStem]}${BRANCHES[seBranch]}(${STEMS_H[seStem]}${BRANCHES_H[seBranch]})</b>년, ${ANIMALS[seBranch]}띠 해입니다. 당신의 일간(${STEMS[r.dayMaster]}) 기준으로 <b>${TEN_GOD_KO[seRel]}</b>의 기운이 들어옵니다.`) +
+      P(TEN_GOD_THEME[seRel]) +
+      P(`올 한 해는 이 흐름을 의식하며 강점은 살리고 약점은 대비하면 한결 수월합니다.`),
+  };
+
+  // --- 대운 (10년 주기) ---
+  const daeun = { id: "daeun", label: "대운(10년)", emoji: "🌊" };
+  if (!gender) {
+    daeun.body = P("대운은 10년마다 바뀌는 인생의 큰 흐름으로, 방향이 <b>성별</b>에 따라 달라집니다. 정확한 대운을 보려면 ‘다시 입력하기’에서 성별을 선택해 주세요.");
+  } else {
+    const yang = YINYANG_STEM[r.pillars.year.stem] === 1;
+    const forward = (gender === "남" && yang) || (gender === "여" && !yang);
+    const bl = r.lambda, bj = r.jdUT;
+    const m = Math.floor((bl - 15) / 30);
+    let days;
+    if (forward) {
+      const nextB = (((15 + 30 * (m + 1)) % 360) + 360) % 360;
+      days = findTermJD(bj, bj + 35, nextB) - bj;
+    } else {
+      const prevB = (((15 + 30 * m) % 360) + 360) % 360;
+      days = bj - findTermJD(bj - 35, bj, prevB);
+    }
+    const startAge = Math.max(1, Math.round(days / 3));
+    const monthIdx = ganziIndex(r.pillars.month.stem, r.pillars.month.branch);
+    const now2 = new Date();
+    const ageNow = (julianDayNumber(now2.getFullYear(), now2.getMonth() + 1, now2.getDate())
+      - julianDayNumber(r.input.year, r.input.month, r.input.day)) / 365.2425;
+
+    let curRel = null, cells = "";
+    for (let n = 0; n < 8; n++) {
+      const idx = (((monthIdx + (forward ? 1 : -1) * (n + 1)) % 60) + 60) % 60;
+      const s = idx % 10, b = idx % 12;
+      const a0 = startAge + 10 * n, a1 = a0 + 9;
+      const cur = ageNow >= a0 && ageNow <= a1 + 0.999;
+      if (cur) curRel = tenGodOf(D, STEM_ELEM[s]);
+      cells += `<div class="dae${cur ? " cur" : ""}">
+        <div class="dae-age">${a0}~${a1}세</div>
+        <div class="dae-gz"><span style="color:${ELEMENTS[STEM_ELEM[s]].color}">${STEMS[s]}</span><span style="color:${ELEMENTS[BRANCH_ELEM[b]].color}">${BRANCHES[b]}</span></div>
+        <div class="dae-ss">${TEN_GOD_KO[tenGodOf(D, STEM_ELEM[s])]}</div>
+      </div>`;
+    }
+    daeun.body = P(`대운은 10년마다 바뀌는 인생의 큰 흐름입니다. <b>${gender} · ${forward ? "순행" : "역행"}</b>이며 첫 대운은 <b>약 ${startAge}세</b>부터 시작합니다.`) +
+      `<div class="daegrid">${cells}</div>` +
+      (curRel ? P(`지금(약 ${Math.floor(ageNow)}세)은 <b>${TEN_GOD_KO[curRel]}</b> 대운의 흐름 속에 있습니다. ${TEN_GOD_THEME[curRel]}`) : "") +
+      P(`<span class="muted small">※ 대운수(시작 나이)는 절기까지의 날수를 3으로 나눈 근사값입니다.</span>`);
+  }
+
   // --- 종합·기질 (기질 + 오행균형 + 총운) ---
   const overall = {
     id: "overall", label: "종합·기질", emoji: "🧭",
@@ -347,7 +426,7 @@ function buildCategories(r) {
       `<div class="rsub"><b>${s.title}</b> ${s.body}</div>`).join(""),
   };
 
-  return [today, love, work, money, health, overall];
+  return [today, sewoon, daeun, love, work, money, health, overall];
 }
 
 if (typeof module !== "undefined") {
