@@ -220,11 +220,142 @@ function buildReadings(r) {
   return { strong, weak, missing, spread, sections };
 }
 
+// === 십성(十星) 기반 운세 (오행 상생/상극) ===
+// 상생: 목→화→토→금→수→목 / 상극: 목극토·화극금·토극수·금극목·수극화
+const ELEM_GEN = [1, 2, 3, 4, 0];   // e 가 생하는 오행
+const ELEM_CTRL = [2, 3, 4, 0, 1];  // e 가 극하는 오행
+const ELEM_LUCK = [
+  { color: "초록", dir: "동쪽", num: "3, 8" },      // 목
+  { color: "빨강", dir: "남쪽", num: "2, 7" },      // 화
+  { color: "노랑", dir: "중앙", num: "5, 10" },     // 토
+  { color: "흰색", dir: "서쪽", num: "4, 9" },      // 금
+  { color: "검정·파랑", dir: "북쪽", num: "1, 6" }, // 수
+];
+
+// 나(일간 오행) 기준으로 다른 오행 e 의 십성 관계
+function tenGodOf(D, e) {
+  if (e === D) return "bigeop";        // 비겁: 자아·경쟁·협력
+  if (ELEM_GEN[D] === e) return "siksang"; // 식상: 표현·활동·재능
+  if (ELEM_GEN[e] === D) return "inseong"; // 인성: 도움·학습·보호
+  if (ELEM_CTRL[D] === e) return "jae";    // 재성: 재물·성취·이성(남)
+  return "gwan";                        // 관성: 직장·규율·이성(여)
+}
+
+function tenGodCounts(r) {
+  const D = STEM_ELEM[r.dayMaster];
+  const t = { bigeop: 0, siksang: 0, jae: 0, inseong: 0, gwan: 0 };
+  r.elemCount.forEach((c, e) => { t[tenGodOf(D, e)] += c; });
+  return t;
+}
+
+function verdict(n) {
+  if (n >= 3) return { label: "강함", cls: "lv-hi" };
+  if (n === 2) return { label: "양호", cls: "lv-mid" };
+  if (n === 1) return { label: "무난", cls: "lv-mid" };
+  return { label: "약함", cls: "lv-lo" };
+}
+
+// 운세 카테고리 배열 생성
+function buildCategories(r) {
+  const D = STEM_ELEM[r.dayMaster];
+  const tg = tenGodCounts(r);
+  const rd = buildReadings(r);
+  const gender = r.input.gender;
+  const strong = rd.strong, weak = rd.weak, missing = rd.missing;
+  const nm = (i) => ELEMENTS[i].name;
+  const P = (s) => `<p class="rbody">${s}</p>`;
+
+  // --- 오늘의 운세 ---
+  const now = new Date();
+  const td = computeSaju({ year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate(), hasTime: false });
+  const tStem = td.pillars.day.stem, tBranch = td.pillars.day.branch;
+  const tElem = STEM_ELEM[tStem];
+  const tRel = tenGodOf(D, tElem);
+  const luck = ELEM_LUCK[tElem];
+  const seed = (tStem * 12 + tBranch + r.dayMaster * 7 + r.animal);
+  const star = 2 + (seed % 4); // 2~5
+  const stars = "★".repeat(star) + "☆".repeat(5 - star);
+  const TODAY = {
+    bigeop: "경쟁과 협력의 기운이 도는 날입니다. 뜻이 맞는 사람과 힘을 합치면 시너지가 크지만, 고집과 충동적인 지출은 잠시 접어두세요.",
+    siksang: "표현과 활동의 날입니다. 아이디어를 밖으로 꺼내거나 재능을 펼치기 좋고, 새로운 시도가 즐거움을 안겨 줍니다.",
+    jae: "재물과 기회의 기운이 들어옵니다. 거래·구매·현실적인 성과에 유리하지만, 지나친 욕심은 오히려 화를 부릅니다.",
+    inseong: "도움과 배움의 날입니다. 공부·정리·휴식이 잘 맞고, 윗사람이나 조력자의 손길이 따릅니다.",
+    gwan: "책임과 규율의 기운입니다. 일·시험·공적인 자리에서 성취가 있으나, 무리한 압박과 스트레스는 조절이 필요합니다.",
+  };
+  const today = {
+    id: "today", label: "오늘의 운세", emoji: "📅",
+    badge: { label: stars, cls: "lv-star" },
+    body: P(`${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 — 오늘은 <b>${STEMS[tStem]}${BRANCHES[tBranch]}(${STEMS_H[tStem]}${BRANCHES_H[tBranch]})</b>일입니다.`) +
+      P(TODAY[tRel]) +
+      `<div class="luck">🍀 행운의 색 <b>${luck.color}</b> · 방위 <b>${luck.dir}</b> · 숫자 <b>${luck.num}</b></div>`,
+  };
+
+  // --- 연애운 ---
+  let loveN, loveNote;
+  if (gender === "남") { loveN = tg.jae; loveNote = "이성에 대한 적극성과 매력을 나타내는 <b>재성</b>"; }
+  else if (gender === "여") { loveN = tg.gwan; loveNote = "인연과 배우자운을 나타내는 <b>관성</b>"; }
+  else { loveN = Math.round((tg.jae + tg.gwan) / 2); loveNote = "인연을 나타내는 <b>재성·관성</b>"; }
+  const love = {
+    id: "love", label: "연애운", emoji: "💕", badge: verdict(loveN),
+    body: P(`연애운은 ${loveNote} 기운으로 봅니다. 당신의 사주에는 이 기운이 ${loveN}개로, ${verdict(loveN).label}한 편입니다.`) +
+      P(loveN >= 2
+        ? "인연의 기운이 넉넉해 만남의 기회가 자연스럽게 열립니다. 다만 마음이 앞서 서두르기보다 상대의 속도를 존중할 때 관계가 오래갑니다."
+        : loveN === 1
+          ? "인연의 기운은 무난합니다. 익숙한 모임이나 신뢰가 쌓인 자리에서 좋은 만남이 찾아옵니다."
+          : "인연의 기운이 은은한 편이라, 나를 가꾸고 활동 반경을 넓힐수록 기회가 늘어납니다. 조급함은 금물입니다.") +
+      P(`연애 스타일: ${ELEM_TRAIT[D].love}입니다.`),
+  };
+
+  // --- 직장운 ---
+  const work = {
+    id: "work", label: "직장운", emoji: "💼", badge: verdict(tg.gwan),
+    body: P(`직장·명예운은 조직과 규율을 뜻하는 <b>관성</b>으로 봅니다. 사주에 관성이 ${tg.gwan}개로 ${verdict(tg.gwan).label}합니다.`) +
+      P(tg.gwan >= 2
+        ? "조직 안에서 책임과 직책을 맡아 인정받는 흐름입니다. 규율 있는 환경일수록 강점이 살아납니다."
+        : tg.gwan === 1
+          ? "무난한 직장운으로, 성실함이 차곡차곡 신뢰로 이어집니다."
+          : "조직의 틀보다 전문성과 자율성으로 승부할 때 빛나는 유형입니다. 전문직·프리랜서·창업도 잘 어울립니다.") +
+      P(`적성: ${nm(strong)} 기운이 강해 ${ELEM_TRAIT[strong].field} 분야가 잘 맞습니다.`),
+  };
+
+  // --- 재물운 ---
+  const money = {
+    id: "money", label: "재물운", emoji: "💰", badge: verdict(tg.jae),
+    body: P(`재물운은 재화를 뜻하는 <b>재성</b>으로 봅니다. 사주에 재성이 ${tg.jae}개로 ${verdict(tg.jae).label}합니다.`) +
+      P(tg.jae >= 2
+        ? "재물을 다루고 불리는 감각이 좋아 현실적인 기회를 잘 살립니다. 큰 욕심보다 꾸준한 관리가 부를 지켜 줍니다."
+        : tg.jae === 1
+          ? "재물운은 무난합니다. 성실한 노력이 착실한 축적으로 이어집니다."
+          : "재물이 들어오는 길이 좁을 수 있으니, 재능·활동(식상)으로 재성을 키우는 전략이 유효합니다. 잘하는 일을 수입으로 연결해 보세요.") +
+      (tg.siksang >= 2 ? P("특히 표현·활동의 재능이 재물로 이어지는 구조라, 콘텐츠·기술·영업처럼 능력을 드러내는 일에서 기회가 큽니다.") : ""),
+  };
+
+  // --- 건강운 ---
+  const hTarget = missing.length ? missing[0] : weak;
+  const hBadge = missing.length ? { label: "주의", cls: "lv-lo" } : (r.elemCount[weak] >= 2 ? { label: "양호", cls: "lv-mid" } : { label: "보통", cls: "lv-mid" });
+  const health = {
+    id: "health", label: "건강운", emoji: "🩺", badge: hBadge,
+    body: P(`건강은 사주에서 약한 오행으로 살핍니다. ${nm(hTarget)} 기운이 ${missing.length ? "없어" : "약해"} ${ELEM_TRAIT[hTarget].organ} 계통을 평소 살피면 좋습니다.`) +
+      P(`충분한 휴식과 규칙적인 생활이 최고의 보약입니다. ${nm(hTarget)}을 상징하는 ${ELEM_LUCK[hTarget].color} 계열의 색과 ${ELEM_LUCK[hTarget].dir} 방위의 기운을 가까이하면 균형에 도움이 됩니다.`) +
+      P(`<span class="muted small">※ 건강 해석은 참고용입니다. 이상 증상이 있으면 반드시 전문의와 상담하세요.</span>`),
+  };
+
+  // --- 종합·기질 (기질 + 오행균형 + 총운) ---
+  const overall = {
+    id: "overall", label: "종합·기질", emoji: "🧭",
+    body: [rd.sections[0], rd.sections[1], rd.sections[5]].map((s) =>
+      `<div class="rsub"><b>${s.title}</b> ${s.body}</div>`).join(""),
+  };
+
+  return [today, love, work, money, health, overall];
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     STEMS, STEMS_H, BRANCHES, BRANCHES_H, ANIMALS,
     STEM_ELEM, BRANCH_ELEM, YINYANG_STEM, ELEMENTS,
-    DAY_MASTER, ELEM_TRAIT, ANIMAL_TRAIT,
+    DAY_MASTER, ELEM_TRAIT, ANIMAL_TRAIT, ELEM_LUCK,
     julianDayNumber, solarLongitude, computeSaju, pillarText, buildReadings,
+    tenGodOf, tenGodCounts, buildCategories,
   };
 }

@@ -194,7 +194,26 @@
   .rsec { border-top: 1px solid var(--line); padding: 16px 0; }
   .rsec:first-child { border-top: 0; }
   .rtitle { font-weight: 800; font-size: 1.02rem; margin-bottom: 5px; color: var(--accent); }
-  .rbody { margin: 0; font-size: .92rem; line-height: 1.65; }
+  .rbody { margin: 0 0 8px; font-size: .92rem; line-height: 1.65; }
+  .rbody:last-child { margin-bottom: 0; }
+
+  /* 운세 카테고리 탭 */
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { height: 0; }
+  .tab { flex: 0 0 auto; font: inherit; font-weight: 700; font-size: .88rem; cursor: pointer;
+    background: var(--card); color: var(--muted); border: 1.5px solid var(--line); border-radius: 999px;
+    padding: 9px 15px; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
+  .tab:hover { border-color: var(--accent); }
+  .tab.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .t-emoji { font-size: 1rem; }
+  .catbox { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: var(--card); min-height: 120px; }
+  .cat-badge { display: inline-block; font-size: .74rem; font-weight: 800; padding: 3px 12px; border-radius: 999px; margin-bottom: 12px; }
+  .lv-star { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); letter-spacing: 2px; }
+  .luck { margin-top: 12px; padding: 11px 14px; border-radius: 12px; font-size: .86rem; font-weight: 600;
+    background: color-mix(in srgb, var(--accent) 7%, transparent); border: 1px dashed var(--line); }
+  .rsub { padding: 10px 0; border-top: 1px solid var(--line); font-size: .92rem; line-height: 1.65; }
+  .rsub:first-child { border-top: 0; padding-top: 0; }
+  .rsub b { color: var(--accent); }
 
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
@@ -350,7 +369,8 @@
     <h2 class="sec-h">오행 분포</h2>
     <div class="elems" id="sajuElems"></div>
     <h2 class="sec-h">운세 풀이</h2>
-    <div id="sajuReadings"></div>
+    <div class="tabs" id="sajuTabs"></div>
+    <div class="catbox" id="sajuCat"></div>
     <div class="actions">
       <button class="btn" id="sajuCopy">결과 링크 복사</button>
       <button class="btn btn-ghost" id="sajuRetry">다시 입력하기</button>

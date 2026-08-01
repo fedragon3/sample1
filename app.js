@@ -141,7 +141,6 @@
 
   // 사주 결과 렌더
   function renderSaju(r) {
-    const rd = buildReadings(r);
     const iv = r.input;
     const genderTxt = iv.gender ? " · " + iv.gender : "";
     const timeTxt = iv.hasTime ? ` ${String(iv.hour).padStart(2, "0")}:${String(iv.minute).padStart(2, "0")}` : " (시간 모름)";
@@ -178,12 +177,25 @@
         <span class="enum">${r.elemCount[i]}</span>
       </div>`).join("");
 
-    // 해석 섹션
-    $("sajuReadings").innerHTML = rd.sections.map((s) => `
-      <div class="rsec">
-        <div class="rtitle">${s.title}</div>
-        <p class="rbody">${s.body}</p>
-      </div>`).join("");
+    // 운세 카테고리 탭
+    const cats = buildCategories(r);
+    const tabs = $("sajuTabs");
+    tabs.innerHTML = "";
+    cats.forEach((c, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "tab" + (idx === 0 ? " active" : "");
+      btn.innerHTML = `<span class="t-emoji">${c.emoji}</span>${c.label}`;
+      btn.addEventListener("click", () => selectCat(cats, idx, tabs));
+      tabs.appendChild(btn);
+    });
+    selectCat(cats, 0, tabs);
+  }
+
+  function selectCat(cats, idx, tabs) {
+    Array.prototype.forEach.call(tabs.children, (b, i) => b.classList.toggle("active", i === idx));
+    const c = cats[idx];
+    const badge = c.badge ? `<div class="cat-badge ${c.badge.cls}">${c.badge.label}</div>` : "";
+    $("sajuCat").innerHTML = badge + c.body;
   }
 
   function startTest(mode) {
