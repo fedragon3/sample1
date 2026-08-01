@@ -197,12 +197,11 @@
   .rbody { margin: 0 0 8px; font-size: .92rem; line-height: 1.65; }
   .rbody:last-child { margin-bottom: 0; }
 
-  /* 운세 카테고리 탭 */
-  .tabs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; -webkit-overflow-scrolling: touch; }
-  .tabs::-webkit-scrollbar { height: 0; }
-  .tab { flex: 0 0 auto; font: inherit; font-weight: 700; font-size: .88rem; cursor: pointer;
+  /* 운세 카테고리 탭 (여러 줄로 자동 줄바꿈 → 모든 항목이 항상 보임) */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 12px; }
+  .tab { flex: 0 1 auto; font: inherit; font-weight: 700; font-size: .86rem; cursor: pointer;
     background: var(--card); color: var(--muted); border: 1.5px solid var(--line); border-radius: 999px;
-    padding: 9px 15px; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
+    padding: 9px 14px; display: inline-flex; align-items: center; gap: 6px; transition: all .15s; white-space: nowrap; }
   .tab:hover { border-color: var(--accent); }
   .tab.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   .t-emoji { font-size: 1rem; }
