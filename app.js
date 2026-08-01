@@ -59,8 +59,132 @@
   $("nextBtn").addEventListener("click", () => { if (state.answers[state.idx] !== 0) advance(); });
   $("copyBtn").addEventListener("click", copyResultLink);
   $("abortBtn").addEventListener("click", () => {
-    if (confirm("검사를 중단하고 처음으로 돌아갈까요? 지금까지의 응답은 사라집니다.")) show("intro");
+    if (confirm("검사를 중단하고 처음으로 돌아갈까요? 지금까지의 응답은 사라집니다.")) goHome();
   });
+
+  // 홈(메인 메뉴) 이동
+  function goHome() { history.replaceState(null, "", location.pathname); show("home"); }
+  document.querySelectorAll("[data-goto]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const t = btn.getAttribute("data-goto");
+      if (t === "home") goHome();
+      else if (t === "intro") show("intro");
+      else if (t === "sajuInput") show("sajuInput");
+    });
+  });
+
+  // ===== 사주 컨트롤러 =====
+  $("sajuForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    runSaju(readSajuForm());
+  });
+  $("sajuNoTime").addEventListener("change", (e) => {
+    $("sajuHour").disabled = e.target.checked;
+    $("sajuMinute").disabled = e.target.checked;
+  });
+  $("sajuRetry").addEventListener("click", () => show("sajuInput"));
+  $("sajuCopy").addEventListener("click", copyResultLink);
+
+  function readSajuForm() {
+    return {
+      year: parseInt($("sajuYear").value, 10),
+      month: parseInt($("sajuMonth").value, 10),
+      day: parseInt($("sajuDay").value, 10),
+      hour: parseInt($("sajuHour").value, 10) || 0,
+      minute: parseInt($("sajuMinute").value, 10) || 0,
+      hasTime: !$("sajuNoTime").checked,
+      gender: $("sajuGender").value,
+    };
+  }
+
+  function validSajuInput(v) {
+    if (!Number.isFinite(v.year) || v.year < 1900 || v.year > 2100) return "연도는 1900~2100 사이로 입력해 주세요.";
+    if (!Number.isFinite(v.month) || v.month < 1 || v.month > 12) return "월을 1~12로 입력해 주세요.";
+    const dmax = new Date(v.year, v.month, 0).getDate();
+    if (!Number.isFinite(v.day) || v.day < 1 || v.day > dmax) return `${v.month}월은 1~${dmax}일까지 입력할 수 있어요.`;
+    if (v.hasTime && (v.hour < 0 || v.hour > 23)) return "시(時)는 0~23으로 입력해 주세요.";
+    return null;
+  }
+
+  function runSaju(v) {
+    const err = validSajuInput(v);
+    if (err) { toast(err); return; }
+    // 링크: #s=Y.M.D.H.Min.T.G
+    const code = [v.year, v.month, v.day, v.hasTime ? v.hour : "", v.hasTime ? v.minute : "",
+      v.hasTime ? 1 : 0, v.gender === "여" ? "F" : (v.gender === "남" ? "M" : "")].join(".");
+    history.replaceState(null, "", location.pathname + "#s=" + code);
+    renderSaju(computeSaju(v));
+    show("sajuResult");
+  }
+
+  function trySajuRestore() {
+    const m = location.hash.match(/s=([^&]+)/);
+    if (!m) return false;
+    const p = m[1].split(".");
+    if (p.length < 7) return false;
+    const v = {
+      year: parseInt(p[0], 10), month: parseInt(p[1], 10), day: parseInt(p[2], 10),
+      hour: parseInt(p[3], 10) || 0, minute: parseInt(p[4], 10) || 0,
+      hasTime: p[5] === "1", gender: p[6] === "F" ? "여" : (p[6] === "M" ? "남" : ""),
+    };
+    if (validSajuInput(v)) return false;
+    // 폼에도 값 반영
+    $("sajuYear").value = v.year; $("sajuMonth").value = v.month; $("sajuDay").value = v.day;
+    if (v.hasTime) { $("sajuHour").value = v.hour; $("sajuMinute").value = v.minute; }
+    $("sajuNoTime").checked = !v.hasTime;
+    $("sajuHour").disabled = !v.hasTime; $("sajuMinute").disabled = !v.hasTime;
+    if (v.gender) $("sajuGender").value = v.gender;
+    renderSaju(computeSaju(v));
+    show("sajuResult");
+    return true;
+  }
+
+  // 사주 결과 렌더
+  function renderSaju(r) {
+    const rd = buildReadings(r);
+    const iv = r.input;
+    const genderTxt = iv.gender ? " · " + iv.gender : "";
+    const timeTxt = iv.hasTime ? ` ${String(iv.hour).padStart(2, "0")}:${String(iv.minute).padStart(2, "0")}` : " (시간 모름)";
+    $("sajuSub").textContent = `${iv.year}년 ${iv.month}월 ${iv.day}일${timeTxt} · 양력${genderTxt}`;
+
+    // 사주 4기둥 표
+    const cols = [
+      { key: "hour", label: "시주(時)" },
+      { key: "day", label: "일주(日)" },
+      { key: "month", label: "월주(月)" },
+      { key: "year", label: "연주(年)" },
+    ];
+    const colHTML = cols.map((c) => {
+      const p = r.pillars[c.key];
+      if (!p) {
+        return `<div class="pcol"><div class="phead">${c.label}</div><div class="pchar pna">·</div><div class="pchar pna">·</div><div class="pmeta">시간 모름</div></div>`;
+      }
+      const se = STEM_ELEM[p.stem], be = BRANCH_ELEM[p.branch];
+      return `<div class="pcol${c.key === "day" ? " pday" : ""}">
+        <div class="phead">${c.label}${c.key === "day" ? " · 나" : ""}</div>
+        <div class="pchar" style="background:${ELEMENTS[se].color}">${STEMS[p.stem]}<span class="ph">${STEMS_H[p.stem]}</span></div>
+        <div class="pchar" style="background:${ELEMENTS[be].color}">${BRANCHES[p.branch]}<span class="ph">${BRANCHES_H[p.branch]}</span></div>
+        <div class="pmeta">${ELEMENTS[se].name}·${ELEMENTS[be].name}</div>
+      </div>`;
+    }).join("");
+    $("sajuPillars").innerHTML = colHTML;
+
+    // 오행 분포 막대
+    const maxc = Math.max.apply(null, r.elemCount) || 1;
+    $("sajuElems").innerHTML = ELEMENTS.map((el, i) => `
+      <div class="erow">
+        <span class="ename" style="color:${el.color}">${el.name}(${el.en})</span>
+        <div class="ebar"><span style="width:${(r.elemCount[i] / maxc) * 100}%;background:${el.color}"></span></div>
+        <span class="enum">${r.elemCount[i]}</span>
+      </div>`).join("");
+
+    // 해석 섹션
+    $("sajuReadings").innerHTML = rd.sections.map((s) => `
+      <div class="rsec">
+        <div class="rtitle">${s.title}</div>
+        <p class="rbody">${s.body}</p>
+      </div>`).join("");
+  }
 
   function startTest(mode) {
     state.mode = mode === "full" ? "full" : "short";
@@ -72,10 +196,12 @@
   }
 
   // === 화면 전환 ===
+  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult"];
   function show(which) {
-    intro.classList.toggle("hidden", which !== "intro");
-    quiz.classList.toggle("hidden", which !== "quiz");
-    result.classList.toggle("hidden", which !== "result");
+    SCREENS.forEach((id) => {
+      const el = $(id);
+      if (el) el.classList.toggle("hidden", id !== which);
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (which === "quiz") renderQuestion();
   }
@@ -384,5 +510,5 @@
     return true;
   }
 
-  if (!tryRestore()) show("intro");
+  if (!tryRestore() && !trySajuRestore()) show("home");
 })();

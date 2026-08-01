@@ -141,6 +141,61 @@
   .facet-desc { font-size: .8rem; color: var(--muted); margin-top: 5px; line-height: 1.5; }
   .lvtag { font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: .72rem; }
   .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  /* 홈 메뉴 */
+  .menu { display: grid; gap: 14px; margin: 22px 0 8px; }
+  @media (min-width: 560px) { .menu { grid-template-columns: 1fr 1fr; } }
+  .menu-card { text-align: left; cursor: pointer; font: inherit; color: var(--ink); background: var(--card);
+    border: 1.5px solid var(--line); border-radius: 16px; padding: 22px 20px; transition: border-color .15s, transform .06s, box-shadow .2s; }
+  .menu-card:hover { border-color: var(--accent); box-shadow: 0 6px 20px rgba(122,92,196,.14); }
+  .menu-card:active { transform: scale(.99); }
+  .mc-emoji { font-size: 2rem; display: block; margin-bottom: 6px; }
+  .menu-card h3 { margin: 0 0 6px; font-size: 1.22rem; letter-spacing: -0.01em; }
+  .menu-card p { margin: 0 0 12px; font-size: .88rem; color: var(--muted); line-height: 1.55; }
+  .mc-go { font-weight: 700; color: var(--accent); font-size: .9rem; }
+  .link-back { background: none; border: 0; color: var(--muted); font: inherit; font-size: .85rem;
+    cursor: pointer; padding: 0 0 12px; }
+  .link-back:hover { color: var(--accent); }
+
+  /* 사주 입력 폼 */
+  .sform { display: grid; gap: 14px; margin: 18px 0 6px; }
+  .frow { display: grid; gap: 12px; }
+  .frow.f3 { grid-template-columns: 1fr 1fr 1fr; }
+  .sform label { display: grid; gap: 5px; font-size: .82rem; font-weight: 700; color: var(--muted); }
+  .sform input, .sform select { font: inherit; font-weight: 500; color: var(--ink); background: var(--card);
+    border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 12px; width: 100%; }
+  .sform input:focus, .sform select:focus { outline: none; border-color: var(--accent); }
+  .sform input:disabled { opacity: .45; }
+  .sform label.chk { flex-direction: row; align-items: center; display: flex; gap: 8px; font-weight: 600;
+    color: var(--ink); align-self: end; padding-bottom: 12px; }
+  .sform label.chk input { width: auto; }
+  .sform .btn { justify-self: start; margin-top: 4px; }
+
+  /* 사주 4기둥 */
+  .sec-h { font-size: 1.1rem; margin: 24px 0 12px; letter-spacing: -0.01em; }
+  .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 4px; }
+  .pcol { text-align: center; border: 1px solid var(--line); border-radius: 14px; padding: 10px 4px 8px; background: var(--card); }
+  .pcol.pday { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .phead { font-size: .68rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; letter-spacing: -0.02em; }
+  .pchar { color: #fff; font-weight: 800; font-size: 1.5rem; border-radius: 10px; padding: 8px 0 6px; margin-bottom: 6px;
+    line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .pchar .ph { display: block; font-size: .66rem; font-weight: 600; opacity: .9; }
+  .pchar.pna { background: var(--line) !important; color: var(--muted); text-shadow: none; }
+  .pmeta { font-size: .68rem; color: var(--muted); }
+
+  /* 오행 분포 */
+  .elems { display: grid; gap: 9px; }
+  .erow { display: flex; align-items: center; gap: 12px; }
+  .ename { font-weight: 700; font-size: .9rem; min-width: 62px; }
+  .ebar { flex: 1; height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .ebar > span { display: block; height: 100%; border-radius: 999px; transition: width .4s; }
+  .enum { font-variant-numeric: tabular-nums; font-weight: 800; min-width: 20px; text-align: right; }
+
+  /* 사주 해석 */
+  .rsec { border-top: 1px solid var(--line); padding: 16px 0; }
+  .rsec:first-child { border-top: 0; }
+  .rtitle { font-weight: 800; font-size: 1.02rem; margin-bottom: 5px; color: var(--accent); }
+  .rbody { margin: 0; font-size: .92rem; line-height: 1.65; }
+
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
@@ -152,8 +207,33 @@
 <body>
 <div class="wrap">
 
+  <!-- ===== 홈(메인 메뉴) ===== -->
+  <section id="home" class="card">
+    <span class="tag">무료 · 설치 불필요 · 링크만 있으면</span>
+    <h1>나를 알아보는 시간</h1>
+    <p class="muted">원하는 검사를 선택하세요. 모든 계산은 내 브라우저 안에서만 이루어집니다.</p>
+    <div class="menu">
+      <button class="menu-card" data-goto="intro">
+        <span class="mc-emoji">🧭</span>
+        <h3>기질·성격 검사</h3>
+        <p>TCI 7차원 이론 기반 성격 자가탐색. 간단(28문항)·심화(140문항).</p>
+        <span class="mc-go">들어가기 →</span>
+      </button>
+      <button class="menu-card" data-goto="sajuInput">
+        <span class="mc-emoji">🔮</span>
+        <h3>사주팔자·운세</h3>
+        <p>생년월일시로 사주 8자·오행·운세를 풀어봅니다. (재미·오락용)</p>
+        <span class="mc-go">들어가기 →</span>
+      </button>
+    </div>
+    <div class="disclaimer">
+      두 기능 모두 <strong>비공식·자기이해/오락용</strong>이며, 전문 상담이나 진단을 대체하지 않습니다.
+    </div>
+  </section>
+
   <!-- ===== 인트로 ===== -->
   <section id="intro" class="card">
+    <button class="link-back" data-goto="home">← 메뉴</button>
     <span class="tag">무료 · 설치 불필요</span>
     <h1>기질·성격 자가탐색 검사</h1>
     <p class="muted">Cloninger의 <strong>TCI 7차원 · 28개 하위척도 이론</strong>에 기반한 온라인 자가탐색 도구입니다.
@@ -223,15 +303,73 @@
     </div>
   </section>
 
+  <!-- ===== 사주 입력 ===== -->
+  <section id="sajuInput" class="card hidden">
+    <button class="link-back" data-goto="home">← 메뉴</button>
+    <span class="tag">사주팔자 · 운세</span>
+    <h1>생년월일시를 입력하세요</h1>
+    <p class="muted small">양력 기준으로 사주 8자와 오행·운세를 계산합니다. 입력값은 저장·전송되지 않습니다.</p>
+    <form id="sajuForm" class="sform" autocomplete="off">
+      <div class="frow">
+        <label>연도(양력)
+          <input id="sajuYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="예: 1990" required />
+        </label>
+      </div>
+      <div class="frow f3">
+        <label>월<input id="sajuMonth" type="number" inputmode="numeric" min="1" max="12" placeholder="6" required /></label>
+        <label>일<input id="sajuDay" type="number" inputmode="numeric" min="1" max="31" placeholder="15" required /></label>
+        <label>성별
+          <select id="sajuGender">
+            <option value="">선택 안 함</option>
+            <option value="남">남</option>
+            <option value="여">여</option>
+          </select>
+        </label>
+      </div>
+      <div class="frow f3">
+        <label>태어난 시(0~23)<input id="sajuHour" type="number" inputmode="numeric" min="0" max="23" placeholder="14" /></label>
+        <label>분(선택)<input id="sajuMinute" type="number" inputmode="numeric" min="0" max="59" placeholder="30" /></label>
+        <label class="chk"><input id="sajuNoTime" type="checkbox" /> 시간 모름</label>
+      </div>
+      <button class="btn" type="submit">사주 풀이 보기</button>
+    </form>
+    <div class="disclaimer">
+      ⚠️ 사주 결과는 <strong>재미·오락 및 자기이해</strong>를 위한 것입니다. 절기 경계(입춘 등) 부근 출생이나
+      시간 미상은 오차가 있을 수 있으며, 한국 표준시(양력) 시계시각 기준으로 계산합니다.
+    </div>
+  </section>
+
+  <!-- ===== 사주 결과 ===== -->
+  <section id="sajuResult" class="card hidden">
+    <button class="link-back" data-goto="sajuInput">← 다시 입력</button>
+    <span class="tag">사주팔자 풀이</span>
+    <h1>나의 사주팔자</h1>
+    <p class="muted small" id="sajuSub">—</p>
+    <div class="pillars" id="sajuPillars"></div>
+    <p class="muted small center" style="margin:2px 0 18px">가운데 <strong>일주(日柱)의 위 글자(일간)</strong>가 '나 자신'을 나타냅니다.</p>
+    <h2 class="sec-h">오행 분포</h2>
+    <div class="elems" id="sajuElems"></div>
+    <h2 class="sec-h">운세 풀이</h2>
+    <div id="sajuReadings"></div>
+    <div class="actions">
+      <button class="btn" id="sajuCopy">결과 링크 복사</button>
+      <button class="btn btn-ghost" id="sajuRetry">다시 입력하기</button>
+    </div>
+    <div class="disclaimer">
+      본 풀이는 오행 이론을 바탕으로 자동 생성된 <strong>참고·오락용</strong> 해석이며, 전문 명리 상담을 대체하지 않습니다.
+    </div>
+  </section>
+
   <footer>
-    기질·성격 자가탐색 검사 · TCI(Temperament and Character Inventory, Cloninger) 7차원 이론 기반<br />
-    정식 TCI 검사와 무관한 독자적 교육용 구현물입니다.
+    나를 알아보는 시간 · 기질·성격 검사(TCI 이론 기반) + 사주팔자(오행 이론 기반)<br />
+    모든 계산은 브라우저에서만 이루어지는 독자적 구현물이며, 전문 진단·상담을 대체하지 않습니다.
   </footer>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script src="questions.js"></script>
+<script src="saju.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
