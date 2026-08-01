@@ -65,13 +65,7 @@
   // 홈(메인 메뉴) 이동
   function goHome() { history.replaceState(null, "", location.pathname); show("home"); }
   document.querySelectorAll("[data-goto]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const t = btn.getAttribute("data-goto");
-      if (t === "home") goHome();
-      else if (t === "intro") show("intro");
-      else if (t === "sajuInput") show("sajuInput");
-      else if (t === "report") showReport();
-    });
+    btn.addEventListener("click", () => navTo(btn.getAttribute("data-goto")));
   });
 
   // ===== 저장(로컬) — 통합 리포트용 =====
@@ -215,10 +209,141 @@
     else if (t === "intro") show("intro");
     else if (t === "sajuInput") show("sajuInput");
     else if (t === "report") showReport();
+    else if (t === "fortuneInput") showFortuneInput();
   }
   function wireGoto(root) {
     root.querySelectorAll("[data-goto]").forEach((b) => {
       b.addEventListener("click", () => navTo(b.getAttribute("data-goto")));
+    });
+  }
+
+  // ===== 운세 종합 컨트롤러 =====
+  $("fortuneForm").addEventListener("submit", (e) => { e.preventDefault(); runFortune(); });
+  $("fRetry").addEventListener("click", () => show("fortuneInput"));
+
+  function showFortuneInput() {
+    const saju = loadLS(LS.saju);
+    if (saju && saju.input) {
+      $("fYear").value = saju.input.year; $("fMonth").value = saju.input.month; $("fDay").value = saju.input.day;
+    }
+    show("fortuneInput");
+  }
+
+  function runFortune() {
+    const v = { year: parseInt($("fYear").value, 10), month: parseInt($("fMonth").value, 10), day: parseInt($("fDay").value, 10) };
+    if (!Number.isFinite(v.year) || v.year < 1900 || v.year > 2100) return toast("연도는 1900~2100 사이로 입력해 주세요.");
+    if (!Number.isFinite(v.month) || v.month < 1 || v.month > 12) return toast("월을 1~12로 입력해 주세요.");
+    const dmax = new Date(v.year, v.month, 0).getDate();
+    if (!Number.isFinite(v.day) || v.day < 1 || v.day > dmax) return toast(`${v.month}월은 1~${dmax}일까지 입력할 수 있어요.`);
+    fortuneState = { input: v, r: buildFortune(v) };
+    renderFortune();
+    show("fortuneResult");
+  }
+
+  let fortuneState = null;
+
+  function renderFortune() {
+    const r = fortuneState.r;
+    $("fSummary").innerHTML = `<div class="cat-badge lv-star">${r.dateKey}</div><p class="rbody">${r.summary}</p>`;
+
+    const cats = [
+      { id: "zodiac", label: "별자리", emoji: "⭐" },
+      { id: "bio", label: "바이오리듬", emoji: "📈" },
+      { id: "tarot", label: "타로", emoji: "🎴" },
+    ];
+    const tabs = $("fTabs");
+    tabs.innerHTML = "";
+    cats.forEach((c, idx) => {
+      const b = document.createElement("button");
+      b.className = "tab" + (idx === 0 ? " active" : "");
+      b.innerHTML = `<span class="t-emoji">${c.emoji}</span>${c.label}`;
+      b.addEventListener("click", () => selectFortune(cats, idx, tabs));
+      tabs.appendChild(b);
+    });
+    selectFortune(cats, 0, tabs);
+  }
+
+  function selectFortune(cats, idx, tabs) {
+    Array.prototype.forEach.call(tabs.children, (b, i) => b.classList.toggle("active", i === idx));
+    const id = cats[idx].id;
+    if (id === "zodiac") $("fCat").innerHTML = zodiacHTML();
+    else if (id === "bio") $("fCat").innerHTML = bioHTML();
+    else { $("fCat").innerHTML = tarotHTML(); wireTarotRedraw(); }
+  }
+
+  function zodiacHTML() {
+    const z = fortuneState.r.zodiac, d = z.daily;
+    return `
+      <div class="fbig">
+        <div class="fz-sym">${z.sym}</div>
+        <div class="fz-name">${z.name}</div>
+        <div class="fz-el">${z.en} · ${z.elem}자리</div>
+        <div class="fstars">${"★".repeat(d.star)}${"☆".repeat(5 - d.star)}</div>
+      </div>
+      <p class="rbody">${z.trait}</p>
+      <p class="rbody"><b>오늘의 운세</b> — ${d.line}</p>
+      <div class="luck">🍀 행운의 색 <b>${d.color}</b> · 숫자 <b>${d.num}</b></div>`;
+  }
+
+  function bioHTML() {
+    const bio = fortuneState.r.bio;
+    const legend = BIO.map((b) => `<span><i class="bio-dot" style="background:${b.color}"></i>${b.name}</span>`).join("");
+    const rows = BIO.map((b) => {
+      const v = bio.now[b.key], ph = bioPhase(v);
+      const w = Math.abs(v) / 2; // 0~50%
+      const bar = v >= 0
+        ? `<span style="left:50%;width:${w}%;background:${b.color}"></span>`
+        : `<span style="right:50%;width:${w}%;background:${b.color}"></span>`;
+      return `<div class="bio-row"><span class="bio-nm" style="color:${b.color}">${b.name}</span>
+        <div class="bio-bar"><i></i>${bar}</div>
+        <span class="bio-val">${v > 0 ? "+" : ""}${v}% ${ph.txt}</span></div>`;
+    }).join("");
+    return `<div class="chart-wrap">${bioSVG(bio.series)}</div>
+      <div class="bio-legend">${legend}</div>
+      <div class="bio-rows">${rows}</div>
+      <p class="rbody muted small" style="margin-top:12px">곡선이 위(고조)면 해당 기운이 활발하고, 아래(저조)면 재충전이 필요한 시기입니다. 0선을 지나는 ‘전환일’엔 컨디션이 불안정할 수 있어요.</p>`;
+  }
+
+  function bioSVG(series) {
+    const W = 340, H = 150, padX = 8, midY = H / 2, amp = H / 2 - 12;
+    const n = series.length;
+    const x = (i) => padX + (i / (n - 1)) * (W - 2 * padX);
+    const y = (v) => midY - v * amp;
+    let g = `<line x1="${padX}" y1="${midY}" x2="${W - padX}" y2="${midY}" stroke="var(--line)" stroke-width="1"/>`;
+    const todayI = series.findIndex((s) => s.d === 0);
+    g += `<line x1="${x(todayI).toFixed(1)}" y1="8" x2="${x(todayI).toFixed(1)}" y2="${H - 8}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+    BIO.forEach((b) => {
+      const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s.v[b.key]).toFixed(1)}`).join(" ");
+      g += `<polyline points="${pts}" fill="none" stroke="${b.color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      g += `<circle cx="${x(todayI).toFixed(1)}" cy="${y(series[todayI].v[b.key]).toFixed(1)}" r="3.5" fill="${b.color}"/>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="바이오리듬 그래프">${g}</svg>`;
+  }
+
+  function tarotHTML() {
+    const cards = fortuneState.r.tarot.map((t) => {
+      const c = TAROT[t.card], mean = t.reversed ? c.rev : c.up;
+      const dir = t.reversed
+        ? `<span class="tc-dir lv-lo">역방향</span>`
+        : `<span class="tc-dir lv-hi">정방향</span>`;
+      return `<div class="tcard${t.reversed ? " rev" : ""}">
+        <div class="tc-pos">${t.pos}</div>
+        <div class="tc-emoji${t.reversed ? " flip" : ""}">${c.e}</div>
+        <div class="tc-name">${c.n}</div>${dir}
+        <div class="tc-mean">${mean}</div>
+      </div>`;
+    }).join("");
+    return `<p class="rbody muted small">과거 · 현재 · 미래 3장 스프레드입니다.</p>
+      <div class="tcards">${cards}</div>
+      <div class="center tredraw"><button class="btn btn-ghost" id="tRedraw">🔄 카드 다시 뽑기</button></div>`;
+  }
+
+  function wireTarotRedraw() {
+    const btn = $("tRedraw");
+    if (btn) btn.addEventListener("click", () => {
+      fortuneState.r.tarot = drawTarot((Math.random() * 0x7fffffff) >>> 0, 3);
+      $("fCat").innerHTML = tarotHTML();
+      wireTarotRedraw();
     });
   }
 
@@ -287,7 +412,7 @@
   }
 
   // === 화면 전환 ===
-  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report"];
+  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report", "fortuneInput", "fortuneResult"];
   function show(which) {
     SCREENS.forEach((id) => {
       const el = $(id);
