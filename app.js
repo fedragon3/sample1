@@ -70,8 +70,18 @@
       if (t === "home") goHome();
       else if (t === "intro") show("intro");
       else if (t === "sajuInput") show("sajuInput");
+      else if (t === "report") showReport();
     });
   });
+
+  // ===== 저장(로컬) — 통합 리포트용 =====
+  const LS = { tci: "ir_tci", saju: "ir_saju" };
+  function saveLS(key, obj) {
+    try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { /* 비공개 모드 등 */ }
+  }
+  function loadLS(key) {
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
 
   // ===== 사주 컨트롤러 =====
   $("sajuForm").addEventListener("submit", (e) => {
@@ -142,6 +152,7 @@
   // 사주 결과 렌더
   function renderSaju(r) {
     const iv = r.input;
+    saveLS(LS.saju, { input: iv, ts: Date.now() });
     const genderTxt = iv.gender ? " · " + iv.gender : "";
     const timeTxt = iv.hasTime ? ` ${String(iv.hour).padStart(2, "0")}:${String(iv.minute).padStart(2, "0")}` : " (시간 모름)";
     $("sajuSub").textContent = `${iv.year}년 ${iv.month}월 ${iv.day}일${timeTxt} · 양력${genderTxt}`;
@@ -198,6 +209,74 @@
     $("sajuCat").innerHTML = badge + c.body;
   }
 
+  // ===== 통합 리포트 컨트롤러 =====
+  function navTo(t) {
+    if (t === "home") goHome();
+    else if (t === "intro") show("intro");
+    else if (t === "sajuInput") show("sajuInput");
+    else if (t === "report") showReport();
+  }
+  function wireGoto(root) {
+    root.querySelectorAll("[data-goto]").forEach((b) => {
+      b.addEventListener("click", () => navTo(b.getAttribute("data-goto")));
+    });
+  }
+
+  function showReport() {
+    const tci = loadLS(LS.tci), saju = loadLS(LS.saju);
+    const body = $("reportBody");
+    if (!tci || !saju) {
+      body.innerHTML = reportEmptyHTML(!!tci, !!saju);
+    } else {
+      const r = computeSaju(saju.input);
+      const deps = {
+        DIMENSIONS, ELEMENTS, STEMS, BRANCHES, STEM_ELEM, ELEM_TRAIT, ANIMALS,
+        tenGodCounts, sajuPhases, TEN_GOD_KO, TEN_GOD_THEME,
+      };
+      body.innerHTML = reportFullHTML(buildIntegrated(tci.scores, r, deps));
+    }
+    wireGoto(body);
+    show("report");
+  }
+
+  function reportEmptyHTML(hasTci, hasSaju) {
+    const item = (done, ic, name, goto) =>
+      `<div class="rep-item ${done ? "done" : ""}">
+        <span class="ri-ic">${done ? "✅" : ic}</span>
+        <span class="ri-txt"><span class="ri-name">${name}</span><br><span class="ri-state">${done ? "완료됨" : "아직 하지 않음"}</span></span>
+        ${done ? "" : `<button class="ri-go" data-goto="${goto}">하러 가기 →</button>`}
+      </div>`;
+    return `
+      <div class="rep-empty">
+        <span class="re-emoji">🧬</span>
+        <h1 class="rep-head">통합 리포트</h1>
+        <p class="muted">성격검사와 사주, 두 가지를 모두 마치면<br>둘을 합친 맞춤 분석이 열립니다.</p>
+      </div>
+      <div class="rep-status">
+        ${item(hasTci, "🧭", "기질·성격 검사", "intro")}
+        ${item(hasSaju, "🔮", "사주팔자", "sajuInput")}
+      </div>`;
+  }
+
+  function reportFullHTML(rep) {
+    const sec = rep.sections.map((s) => {
+      let inner = s.html || "";
+      if (s.list) inner = s.list.map((i) => `<div class="icard"><div class="icard-t">${i.t}</div><div class="icard-b">${i.b}</div></div>`).join("");
+      return `<div class="isec"><div class="ititle">${s.title}</div>${inner}</div>`;
+    }).join("");
+    return `
+      <h1 class="rep-head">${rep.headline}</h1>
+      <p class="rep-sub">성격검사 + 사주 통합 분석</p>
+      ${sec}
+      <div class="actions">
+        <button class="btn btn-ghost" data-goto="home">← 메뉴로</button>
+      </div>
+      <div class="disclaimer">
+        통합 리포트는 서로 다른 전통(심리검사·명리)을 함께 비추어 보는 <strong>자기성찰·오락용</strong> 해석이며,
+        학술적 상관을 뜻하지 않고 전문 진단·상담을 대체하지 않습니다.
+      </div>`;
+  }
+
   function startTest(mode) {
     state.mode = mode === "full" ? "full" : "short";
     state.seed = (Math.random() * 0x7fffffff) >>> 0;   // 매 검사 새 순서
@@ -208,7 +287,7 @@
   }
 
   // === 화면 전환 ===
-  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult"];
+  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report"];
   function show(which) {
     SCREENS.forEach((id) => {
       const el = $(id);
@@ -357,6 +436,7 @@
 
   // === 결과 렌더 ===
   function renderResult(scores) {
+    saveLS(LS.tci, { scores: scores.dim, mode: state.mode, ts: Date.now() });
     const nSub = state.deck.filter((q) => !q.check).length;
     $("resultMode").textContent = (state.mode === "full" ? "심화 검사" : "간단 검사") + " · " + nSub + "문항";
     $("chartWrap").innerHTML = radarSVG(scores.dim);

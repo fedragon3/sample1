@@ -281,6 +281,47 @@ const TEN_GOD_THEME = {
   gwan: "책임과 명예의 시기입니다. 승진·직책·시험의 결실이 있으나 부담·스트레스 관리가 관건이며, 여성에게는 인연·결혼운도 함께합니다.",
 };
 
+// 대운 정보(방향·대운수·구간·현재 대운) — 성별 없으면 null
+function daeunInfo(r) {
+  const gender = r.input.gender;
+  if (!gender) return null;
+  const D = STEM_ELEM[r.dayMaster];
+  const yang = YINYANG_STEM[r.pillars.year.stem] === 1;
+  const forward = (gender === "남" && yang) || (gender === "여" && !yang);
+  const bl = r.lambda, bj = r.jdUT, m = Math.floor((bl - 15) / 30);
+  let days;
+  if (forward) { const nb = (((15 + 30 * (m + 1)) % 360) + 360) % 360; days = findTermJD(bj, bj + 35, nb) - bj; }
+  else { const pb = (((15 + 30 * m) % 360) + 360) % 360; days = bj - findTermJD(bj - 35, bj, pb); }
+  const startAge = Math.max(1, Math.round(days / 3));
+  const monthIdx = ganziIndex(r.pillars.month.stem, r.pillars.month.branch);
+  const now = new Date();
+  const ageNow = (julianDayNumber(now.getFullYear(), now.getMonth() + 1, now.getDate())
+    - julianDayNumber(r.input.year, r.input.month, r.input.day)) / 365.2425;
+  const periods = []; let current = null;
+  for (let n = 0; n < 8; n++) {
+    const idx = (((monthIdx + (forward ? 1 : -1) * (n + 1)) % 60) + 60) % 60;
+    const s = idx % 10, b = idx % 12, a0 = startAge + 10 * n, a1 = a0 + 9;
+    const cur = ageNow >= a0 && ageNow <= a1 + 0.999;
+    const p = { stem: s, branch: b, ageStart: a0, ageEnd: a1, tenGod: tenGodOf(D, STEM_ELEM[s]), current: cur };
+    periods.push(p); if (cur) current = p;
+  }
+  return { forward, startAge, ageNow, periods, current };
+}
+
+// 현재 국면(대운·세운)의 십성 — 통합 리포트용
+function sajuPhases(r) {
+  const D = STEM_ELEM[r.dayMaster];
+  const now = new Date();
+  const td = computeSaju({ year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate(), hasTime: false });
+  const seStem = td.pillars.year.stem, seBranch = td.pillars.year.branch;
+  const di = daeunInfo(r);
+  return {
+    sewoon: { year: now.getFullYear(), stem: seStem, branch: seBranch, tenGod: tenGodOf(D, STEM_ELEM[seStem]) },
+    daeun: di ? di.current : null,
+    ageNow: di ? di.ageNow : null,
+  };
+}
+
 // 운세 카테고리 배열 생성
 function buildCategories(r) {
   const D = STEM_ELEM[r.dayMaster];
@@ -379,43 +420,18 @@ function buildCategories(r) {
 
   // --- 대운 (10년 주기) ---
   const daeun = { id: "daeun", label: "대운(10년)", emoji: "🌊" };
-  if (!gender) {
+  const di = daeunInfo(r);
+  if (!di) {
     daeun.body = P("대운은 10년마다 바뀌는 인생의 큰 흐름으로, 방향이 <b>성별</b>에 따라 달라집니다. 정확한 대운을 보려면 ‘다시 입력하기’에서 성별을 선택해 주세요.");
   } else {
-    const yang = YINYANG_STEM[r.pillars.year.stem] === 1;
-    const forward = (gender === "남" && yang) || (gender === "여" && !yang);
-    const bl = r.lambda, bj = r.jdUT;
-    const m = Math.floor((bl - 15) / 30);
-    let days;
-    if (forward) {
-      const nextB = (((15 + 30 * (m + 1)) % 360) + 360) % 360;
-      days = findTermJD(bj, bj + 35, nextB) - bj;
-    } else {
-      const prevB = (((15 + 30 * m) % 360) + 360) % 360;
-      days = bj - findTermJD(bj - 35, bj, prevB);
-    }
-    const startAge = Math.max(1, Math.round(days / 3));
-    const monthIdx = ganziIndex(r.pillars.month.stem, r.pillars.month.branch);
-    const now2 = new Date();
-    const ageNow = (julianDayNumber(now2.getFullYear(), now2.getMonth() + 1, now2.getDate())
-      - julianDayNumber(r.input.year, r.input.month, r.input.day)) / 365.2425;
-
-    let curRel = null, cells = "";
-    for (let n = 0; n < 8; n++) {
-      const idx = (((monthIdx + (forward ? 1 : -1) * (n + 1)) % 60) + 60) % 60;
-      const s = idx % 10, b = idx % 12;
-      const a0 = startAge + 10 * n, a1 = a0 + 9;
-      const cur = ageNow >= a0 && ageNow <= a1 + 0.999;
-      if (cur) curRel = tenGodOf(D, STEM_ELEM[s]);
-      cells += `<div class="dae${cur ? " cur" : ""}">
-        <div class="dae-age">${a0}~${a1}세</div>
-        <div class="dae-gz"><span style="color:${ELEMENTS[STEM_ELEM[s]].color}">${STEMS[s]}</span><span style="color:${ELEMENTS[BRANCH_ELEM[b]].color}">${BRANCHES[b]}</span></div>
-        <div class="dae-ss">${TEN_GOD_KO[tenGodOf(D, STEM_ELEM[s])]}</div>
-      </div>`;
-    }
-    daeun.body = P(`대운은 10년마다 바뀌는 인생의 큰 흐름입니다. <b>${gender} · ${forward ? "순행" : "역행"}</b>이며 첫 대운은 <b>약 ${startAge}세</b>부터 시작합니다.`) +
+    const cells = di.periods.map((p) => `<div class="dae${p.current ? " cur" : ""}">
+        <div class="dae-age">${p.ageStart}~${p.ageEnd}세</div>
+        <div class="dae-gz"><span style="color:${ELEMENTS[STEM_ELEM[p.stem]].color}">${STEMS[p.stem]}</span><span style="color:${ELEMENTS[BRANCH_ELEM[p.branch]].color}">${BRANCHES[p.branch]}</span></div>
+        <div class="dae-ss">${TEN_GOD_KO[p.tenGod]}</div>
+      </div>`).join("");
+    daeun.body = P(`대운은 10년마다 바뀌는 인생의 큰 흐름입니다. <b>${gender} · ${di.forward ? "순행" : "역행"}</b>이며 첫 대운은 <b>약 ${di.startAge}세</b>부터 시작합니다.`) +
       `<div class="daegrid">${cells}</div>` +
-      (curRel ? P(`지금(약 ${Math.floor(ageNow)}세)은 <b>${TEN_GOD_KO[curRel]}</b> 대운의 흐름 속에 있습니다. ${TEN_GOD_THEME[curRel]}`) : "") +
+      (di.current ? P(`지금(약 ${Math.floor(di.ageNow)}세)은 <b>${TEN_GOD_KO[di.current.tenGod]}</b> 대운의 흐름 속에 있습니다. ${TEN_GOD_THEME[di.current.tenGod]}`) : "") +
       P(`<span class="muted small">※ 대운수(시작 나이)는 절기까지의 날수를 3으로 나눈 근사값입니다.</span>`);
   }
 
@@ -435,6 +451,7 @@ if (typeof module !== "undefined") {
     STEM_ELEM, BRANCH_ELEM, YINYANG_STEM, ELEMENTS,
     DAY_MASTER, ELEM_TRAIT, ANIMAL_TRAIT, ELEM_LUCK,
     julianDayNumber, solarLongitude, computeSaju, pillarText, buildReadings,
-    tenGodOf, tenGodCounts, buildCategories,
+    tenGodOf, tenGodCounts, buildCategories, daeunInfo, sajuPhases,
+    TEN_GOD_KO, TEN_GOD_THEME,
   };
 }
