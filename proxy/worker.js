@@ -18,7 +18,7 @@
  *   GEMINI_API_KEY   (필수, secret)  — Google AI Studio 무료 API 키
  *   ALLOW_ORIGIN     (선택)          — CORS 허용 오리진. 예) "https://fedragon3.github.io"
  *                                      미설정 시 "*" (개발 편의용, 배포 시 지정 권장)
- *   GEMINI_MODEL     (선택)          — 기본 "gemini-1.5-flash" (무료 티어 대상)
+ *   GEMINI_MODEL     (선택)          — 기본 "gemini-2.0-flash" (무료 티어 대상)
  *   MAX_TOKENS       (선택)          — 응답 최대 토큰 (기본 1024)
  */
 
@@ -43,7 +43,7 @@ export default {
     try { body = await request.json(); }
     catch (e) { return json({ error: "invalid JSON body" }, 400, cors); }
 
-    const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+    const model = env.GEMINI_MODEL || "gemini-2.0-flash";
     const maxTokens = clampInt(body.max_tokens, 1, 4096, Number(env.MAX_TOKENS) || 1024);
     const contents = toGeminiContents(body.messages);
     if (!contents.length) return json({ error: "messages required" }, 400, cors);
