@@ -71,19 +71,22 @@
   - 각 카테고리에 사주(십성)·별자리·바이오리듬 신호 + **뽑은 타로 카드를 문맥 속에서 해석**
   - 상단: 종합 요약 + 근거 칩(일간·별자리·바이오리듬·세운) + 바이오리듬 그래프
 - 카드 그림은 이모지, 해석은 공개 구조·아키타입 기반 원본 텍스트 (재미·오락용)
-- **AI 운세 상담 챗봇(선택)** — 리포트가 나오면 그 내용을 근거로 대화형 상담이 열립니다.
+- **AI 운세 상담 챗봇(선택, 무료)** — 리포트가 나오면 그 내용을 근거로 대화형 상담이 열립니다.
   질문은 리포트를 바탕으로 답하며, 대화는 서버에 저장되지 않습니다.
 
-### 챗봇 설정 (API 키 숨기기)
+### 챗봇 설정 (무료 Gemini · API 키 숨기기)
 
 정적 사이트에는 API 키를 숨길 수 없으므로(번들·Network 탭에서 그대로 노출),
 키는 **서버리스 프록시**의 서버 측 비밀로만 두고 브라우저는 프록시에만 요청합니다.
+백엔드는 **무료 티어인 Google Gemini**를 사용합니다(개인 사용 수준이면 무료).
 
-1. `proxy/README.md` 를 따라 Cloudflare Worker(무료) 를 배포하고 `ANTHROPIC_API_KEY` 를 secret 으로 등록
-2. 루트 `config.js` 의 `CHAT_ENDPOINT` 에 배포된 프록시 URL 을 입력 후 커밋·배포
+1. [Google AI Studio](https://aistudio.google.com/apikey)에서 **무료 API 키** 발급
+2. `proxy/README.md` 를 따라 Cloudflare Worker(무료) 를 배포하고 `GEMINI_API_KEY` 를 secret 으로 등록
+3. 루트 `config.js` 의 `CHAT_ENDPOINT` 에 배포된 프록시 URL 을 입력 후 커밋·배포
 
 `CHAT_ENDPOINT` 가 비어 있으면 챗봇은 안전하게 비활성화(설정 안내)됩니다. **API 키는
-`config.js`·HTML·저장소 어디에도 넣지 않습니다.**
+`config.js`·HTML·저장소 어디에도 넣지 않습니다.** 클라이언트는 프록시와 중립 포맷으로만
+통신하므로, 백엔드 모델을 바꿔도 클라이언트 코드는 그대로 둡니다.
 
 ## 구성
 
@@ -96,8 +99,8 @@
 | `fortune.js` | 별자리·바이오리듬·타로 계산 엔진 및 해석 텍스트 |
 | `fortunereport.js` | 사주·별자리·바이오리듬·타로를 카테고리별로 종합하는 리포트 로직 |
 | `integrate.js` | 성격 × 사주 통합 리포트 생성 로직 |
-| `config.js` | 챗봇 프록시 URL·모델 설정 (API 키는 넣지 않음) |
-| `proxy/` | 챗봇용 서버리스 프록시(Cloudflare Worker) + 배포 안내 |
+| `config.js` | 챗봇 프록시 URL 설정 (API 키는 넣지 않음) |
+| `proxy/` | 챗봇용 서버리스 프록시(Cloudflare Worker, 무료 Gemini 중계) + 배포 안내 |
 
 ## 로컬에서 실행
 

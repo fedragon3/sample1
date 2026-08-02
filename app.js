@@ -425,12 +425,10 @@
       const res = await fetch(CHAT_CFG.CHAT_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // 중립 포맷: 모델·키는 프록시가 결정/보관한다. 클라이언트는 근거와 대화만 보낸다.
         body: JSON.stringify({
-          model: CHAT_CFG.MODEL || "claude-sonnet-5",
-          max_tokens: 1024,
           system: chatSystemPrompt(fRep),
           messages: chatHistory,
-          stream: true,
         }),
       });
       if (!res.ok || !res.body) {
@@ -451,7 +449,8 @@
     }
   }
 
-  // Anthropic SSE 스트림을 읽어 aiEl 에 점진적으로 렌더. 최종 텍스트 반환.
+  // 프록시의 중립 SSE 스트림(`data: {"text": "..."}` 줄들, 종료는 `data: [DONE]`)을
+  // 읽어 aiEl 에 점진적으로 렌더한다. 최종 텍스트를 반환.
   async function readStream(body, aiEl) {
     const reader = body.getReader();
     const dec = new TextDecoder();
@@ -469,13 +468,14 @@
         if (!payload || payload === "[DONE]") continue;
         let ev;
         try { ev = JSON.parse(payload); } catch (e) { continue; }
-        if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") {
+        if (ev.error) {
+          throw new Error(typeof ev.error === "string" ? ev.error : (ev.error.message || "stream error"));
+        }
+        if (typeof ev.text === "string" && ev.text) {
           if (!started) { aiEl.classList.remove("typing"); aiEl.textContent = ""; started = true; }
-          full += ev.delta.text;
+          full += ev.text;
           aiEl.textContent = full;
           aiEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } else if (ev.type === "error") {
-          throw new Error(ev.error && ev.error.message ? ev.error.message : "stream error");
         }
       }
     }
