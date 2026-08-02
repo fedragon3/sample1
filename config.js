@@ -14,5 +14,5 @@
  * 통신하므로, 백엔드 모델을 바꿔도 이 파일은 그대로 두면 됩니다.
  */
 window.FORTUNE_CHAT = {
-  CHAT_ENDPOINT: "",
+  CHAT_ENDPOINT: "https://fortune-chat.fortune-chat.workers.dev",
 };
