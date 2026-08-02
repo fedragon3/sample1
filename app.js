@@ -571,7 +571,7 @@
   }
 
   // === 화면 전환 ===
-  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report", "fortuneInput", "tarotDraw", "fortuneResult"];
+  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report", "fortuneInput", "tarotDraw", "fortuneResult", "tarotInput", "tarotDrawScreen", "tarotResultScreen"];
   function show(which) {
     SCREENS.forEach((id) => {
       const el = $(id);
@@ -884,6 +884,241 @@
     renderResult(computeScores(deck, answers));
     show("result");
     return true;
+  }
+
+  // ===== 맞춤 AI 타로 상담 컨트롤러 =====
+  const T_POS_SLOTS = ["과거 · 원인", "현재 · 상황", "미래 · 조언"];
+  let tQuestion = "";
+  let tSoloPicks = [];
+  let tChatHistory = [];
+  let tChatBusy = false;
+
+  // 1. 질문 입력 폼 및 칩
+  $("tSoloForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("tQuestionInput").value.trim();
+    if (!q) return toast("질문을 입력해 주세요.");
+    tQuestion = q;
+    $("tDisplayQuestion").textContent = q;
+    $("tResultQuestion").textContent = q;
+    setupSoloDraw();
+    show("tarotDrawScreen");
+  });
+
+  document.querySelectorAll("#tSuggestChips .chip-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const qText = btn.getAttribute("data-q");
+      if (qText) {
+        $("tQuestionInput").value = qText;
+        $("tQuestionInput").focus();
+      }
+    });
+  });
+
+  // 2. 카드 섞기 & 리딩 시작 버튼
+  $("tSoloReset")?.addEventListener("click", setupSoloDraw);
+  $("tSoloGo")?.addEventListener("click", startSoloReading);
+
+  // 3. 리딩 완료 후 옵션 선택 버튼 ("새로운 질문 하기", "추가 질문 하기")
+  $("tNewQBtn")?.addEventListener("click", () => {
+    $("tQuestionInput").value = "";
+    tQuestion = "";
+    tSoloPicks = [];
+    tChatHistory = [];
+    show("tarotInput");
+  });
+
+  $("tMoreQBtn")?.addEventListener("click", () => {
+    $("tPostActions").classList.add("hidden");
+    $("tChatUI").classList.remove("hidden");
+    $("tChatInput").focus();
+  });
+
+  // 4. 추가 질문 대화 입력 폼
+  $("tChatInput")?.addEventListener("input", (e) => {
+    $("tChatSend").disabled = e.target.value.trim() === "" || tChatBusy;
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+  });
+  $("tChatSend")?.addEventListener("click", sendSoloFollowup);
+  $("tChatInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendSoloFollowup();
+    }
+  });
+
+  function setupSoloDraw() {
+    const drawDeck = drawTarot((Math.random() * 0x7fffffff) >>> 0, 6);
+    tSoloPicks = [];
+    $("tSoloGo").classList.add("hidden");
+    updateSoloDrawStatus();
+    const el = $("tSoloDeck");
+    el.innerHTML = "";
+    drawDeck.forEach((cd) => {
+      const c = TAROT[cd.card];
+      const f = document.createElement("div");
+      f.className = "tflip";
+      f.innerHTML = `<div class="tflip-in">
+        <div class="tface tf-back"></div>
+        <div class="tface tf-front"><span class="fe">${c.e}</span><span class="fn">${c.n}</span><span class="fd ${cd.reversed ? "lv-lo" : "lv-hi"}">${cd.reversed ? "역" : "정"}</span></div>
+      </div>`;
+      f.addEventListener("click", () => pickSoloCard(f, cd));
+      el.appendChild(f);
+    });
+  }
+
+  function pickSoloCard(el, cd) {
+    if (el.classList.contains("used") || tSoloPicks.length >= 3) return;
+    el.classList.add("flipped", "used", "chosen");
+    tSoloPicks.push({ card: cd.card, reversed: cd.reversed, pos: T_POS_SLOTS[tSoloPicks.length] });
+    updateSoloDrawStatus();
+    if (tSoloPicks.length >= 3) $("tSoloGo").classList.remove("hidden");
+  }
+
+  function updateSoloDrawStatus() {
+    $("tDrawCount").textContent = `${tSoloPicks.length} / 3`;
+    $("tDrawSlot").textContent = tSoloPicks.length < 3 ? T_POS_SLOTS[tSoloPicks.length] : "완료 —";
+  }
+
+  async function startSoloReading() {
+    if (tSoloPicks.length < 3) return;
+    show("tarotResultScreen");
+
+    // 뽑힌 카드 3장 디스플레이
+    const container = $("tPickedCardsDisplay");
+    container.innerHTML = tSoloPicks.map((p) => {
+      const c = TAROT[p.card];
+      return `<div class="t-picked-card">
+        <div class="tpc-pos">${p.pos}</div>
+        <span class="tpc-emoji">${c.e}</span>
+        <div class="tpc-name">${c.n}</div>
+        <span class="tpc-dir ${p.reversed ? "lv-lo" : "lv-hi"}">${p.reversed ? "역방향" : "정방향"}</span>
+      </div>`;
+    }).join("");
+
+    // 초기화
+    tChatHistory = [];
+    const log = $("tChatLog");
+    log.innerHTML = "";
+    $("tPostActions").classList.add("hidden");
+    $("tChatUI").classList.add("hidden");
+
+    tChatBusy = true;
+    const aiEl = addMsgToLog(log, "ai", "…");
+    aiEl.classList.add("typing");
+
+    const endpoint = getChatEndpoint();
+    if (!endpoint) {
+      aiEl.classList.remove("typing");
+      aiEl.innerHTML = "🔒 챗봇을 쓰려면 <code>config.js</code> 에 프록시 URL(CHAT_ENDPOINT)을 설정해야 합니다.";
+      tChatBusy = false;
+      return;
+    }
+
+    const systemPrompt = tSystemPrompt();
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: systemPrompt,
+          messages: [{ role: "user", content: `질문: "${tQuestion}" 에 대한 타로 3장 리딩을 시작해 주세요.` }],
+        }),
+      });
+
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`요청 실패 (${res.status}) ${detail.slice(0, 200)}`);
+      }
+
+      const reply = await readStream(res.body, aiEl);
+      tChatHistory.push({ role: "assistant", content: reply || "(응답 없음)" });
+    } catch (e) {
+      aiEl.classList.remove("typing");
+      aiEl.textContent = "⚠️ 타로 리딩을 가져오지 못했어요. (" + (e && e.message ? e.message : e) + ")";
+    } finally {
+      tChatBusy = false;
+      $("tPostActions").classList.remove("hidden");
+    }
+  }
+
+  function tSystemPrompt() {
+    const cardsText = tSoloPicks.map((p, i) => {
+      const c = TAROT[p.card];
+      return `${i + 1}. [${p.pos}] ${c.n} (${p.reversed ? "역방향" : "정방향"}) - 키워드: ${p.reversed ? c.rev : c.up}`;
+    }).join("\n");
+
+    return [
+      "당신은 깊은 공감 능력과 통찰력을 지닌 전문 'AI 타로 리더'입니다.",
+      "사용자가 고민하는 질문에 대해, 뽑은 3장의 타로 카드를 바탕으로 정성스럽고 명쾌하게 해석해 드립니다.",
+      "",
+      `[사용자 질문] "${tQuestion}"`,
+      "[뽑힌 타로 카드 3장]",
+      cardsText,
+      "",
+      "답변 가이드:",
+      "1. 첫 문장에서 질문자의 마음에 가볍게 공감하며 인사하세요.",
+      "2. 각 카드가 의미하는 [과거·원인], [현재·상황], [미래·조언] 흐름을 사용자의 질문과 연관지어 자연스럽게 풀어내세요.",
+      "3. 마지막에 사용자가 실천할 수 있는 따뜻하고 실질적인 조언으로 마무리하세요.",
+      "4. 친절하고 다정한 구어체로 3~4문단 정도로 명확하게 답변해 주세요.",
+    ].join("\n");
+  }
+
+  async function sendSoloFollowup() {
+    if (tChatBusy) return;
+    const inp = $("tChatInput");
+    const text = inp.value.trim();
+    if (!text) return;
+
+    inp.value = ""; inp.style.height = "auto";
+    const log = $("tChatLog");
+    addMsgToLog(log, "me", text);
+    tChatHistory.push({ role: "user", content: text });
+
+    tChatBusy = true;
+    $("tChatSend").disabled = true;
+    const aiEl = addMsgToLog(log, "ai", "…");
+    aiEl.classList.add("typing");
+
+    const endpoint = getChatEndpoint();
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: tSystemPrompt(),
+          messages: tChatHistory,
+        }),
+      });
+
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`요청 실패 (${res.status}) ${detail.slice(0, 200)}`);
+      }
+
+      const reply = await readStream(res.body, aiEl);
+      tChatHistory.push({ role: "assistant", content: reply || "(응답 없음)" });
+    } catch (e) {
+      aiEl.classList.remove("typing");
+      aiEl.textContent = "⚠️ 답변을 가져오지 못했어요. (" + (e && e.message ? e.message : e) + ")";
+      tChatHistory.pop();
+    } finally {
+      tChatBusy = false;
+      $("tChatSend").disabled = $("tChatInput").value.trim() === "";
+      $("tChatInput").focus();
+    }
+  }
+
+  function addMsgToLog(container, role, text) {
+    const el = document.createElement("div");
+    el.className = "msg " + (role === "me" ? "me" : "ai");
+    el.textContent = text;
+    container.appendChild(el);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return el;
   }
 
   if (!tryRestore() && !trySajuRestore()) show("home");

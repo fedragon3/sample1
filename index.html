@@ -337,8 +337,96 @@
   .chat-note { font-size: .76rem; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
   .chat-off { font-size: .84rem; color: var(--muted); line-height: 1.6; padding: 14px 16px;
     border: 1px dashed var(--line); border-radius: 13px; background: color-mix(in srgb, var(--accent) 4%, transparent); }
-  .chat-off code { font-size: .82em; background: color-mix(in srgb, var(--accent) 12%, transparent);
-    padding: 1px 6px; border-radius: 5px; }
+  /* 맞춤 타로 스타일 */
+  .user-q-box {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 12px 0 18px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .user-q-box .q-label {
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .chip-group-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--muted);
+    margin: 14px 0 8px;
+  }
+  .t-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip-btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .chip-btn:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+  .t-picked-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin: 16px 0 20px;
+  }
+  .t-picked-card {
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .t-picked-card .tpc-pos {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .t-picked-card .tpc-emoji {
+    font-size: 2rem;
+    display: block;
+    margin: 4px 0;
+  }
+  .t-picked-card .tpc-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .t-picked-card .tpc-dir {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .post-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .post-actions button {
+    flex: 1;
+    min-width: 140px;
+  }
 
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
@@ -369,10 +457,16 @@
         <p>생년월일시로 사주 8자·오행·운세를 풀어봅니다. (재미·오락용)</p>
         <span class="mc-go">들어가기 →</span>
       </button>
+      <button class="menu-card" data-goto="tarotInput">
+        <span class="mc-emoji">🃏</span>
+        <h3>맞춤 AI 타로 상담</h3>
+        <p>원하는 고민을 자유롭게 적고 카드를 뽑으면, AI 타로 리더가 1:1 맞춤 상담 및 추가 대화를 제공합니다.</p>
+        <span class="mc-go">타로 보기 →</span>
+      </button>
       <button class="menu-card" data-goto="fortuneInput">
         <span class="mc-emoji">🔮</span>
         <h3>운세 통합 리포트</h3>
-        <p>사주·별자리·바이오리듬·타로를 <b>하나로 종합</b>해 오늘·연애·직장·재물운을 풀어드립니다. 타로는 직접 뽑아요! (재미·오락용)</p>
+        <p>사주·별자리·바이오리듬·타로를 <b>하나로 종합</b>해 오늘·연애·직장·재물운을 풀어드립니다. (재미·오락용)</p>
         <span class="mc-go">들어가기 →</span>
       </button>
       <button class="menu-card wide" data-goto="report">
@@ -591,6 +685,80 @@
       <button class="btn btn-ghost" id="fRetry">다시 입력하기</button>
     </div>
     <div class="disclaimer">사주·별자리·바이오리듬·타로를 종합해 자동 생성된 <strong>참고·오락용</strong> 해석이며, 전문 상담을 대체하지 않습니다.</div>
+  </section>
+
+  <!-- ===== 맞춤 타로 1: 질문 입력 ===== -->
+  <section id="tarotInput" class="card hidden">
+    <button class="link-back" data-goto="home">← 메뉴</button>
+    <span class="tag">맞춤 AI 타로 상담</span>
+    <h1>고민이나 궁금한 점을 적어주세요</h1>
+    <p class="muted small">연애, 이직, 금전, 인간관계 등 궁금한 점을 구체적으로 적을수록 AI 타로 리더가 더 명확하게 해석해 드려요.</p>
+    <form id="tSoloForm" class="sform" autocomplete="off">
+      <div class="frow">
+        <textarea id="tQuestionInput" rows="3" placeholder="예: 지금 다니는 직장에서 이직을 준비하는 게 맞을까요? / 짝사랑하는 그 사람의 속마음이 궁금해요." required></textarea>
+      </div>
+      <div class="chip-group-title">💡 자주 묻는 질문 칩 (클릭하면 자동 입력)</div>
+      <div class="t-chips" id="tSuggestChips">
+        <button type="button" class="chip-btn" data-q="오늘 하루 나에게 필요한 핵심 조언과 기운은 어떨까?">🌟 오늘의 운세</button>
+        <button type="button" class="chip-btn" data-q="짝사랑하는 상대방의 속마음과 앞으로의 연애 흐름이 궁금해요.">💘 연애 · 속마음</button>
+        <button type="button" class="chip-btn" data-q="이직이나 커리어 방향을 지금 전환하는 것이 좋을까요?">💼 이직 · 커리어</button>
+        <button type="button" class="chip-btn" data-q="조만간 금전운이나 투자/재물 흐름이 어떻게 될까요?">💰 금전 · 재물운</button>
+      </div>
+      <button class="btn" type="submit" style="margin-top:16px">🔮 카드를 고르러 가기 →</button>
+    </form>
+    <div class="disclaimer">
+      ⚠️ 타로 상담은 <strong>재미·오락 및 자기성찰</strong>을 위한 것이며, 전문 진단·법률·의료·투자 결정을 대체하지 않습니다.
+    </div>
+  </section>
+
+  <!-- ===== 맞춤 타로 2: 카드 뽑기 ===== -->
+  <section id="tarotDrawScreen" class="card hidden">
+    <button class="link-back" data-goto="tarotInput">← 질문 다시 쓰기</button>
+    <span class="tag">맞춤 AI 타로 상담</span>
+    <div class="user-q-box">
+      <span class="q-label">질문:</span> <strong id="tDisplayQuestion"></strong>
+    </div>
+    <h1>카드를 <span id="tDrawTotal">3</span>장 뽑아 주세요</h1>
+    <p class="muted small">마음이 가는 카드를 순서대로 3장 선택하세요. (과거/원인 · 현재/상황 · 미래/조언)</p>
+    <div class="draw-status"><span id="tDrawSlot">과거 · 원인</span> 카드를 고르세요 · <b id="tDrawCount">0 / 3</b></div>
+    <div class="tdeck" id="tSoloDeck"></div>
+    <div class="actions">
+      <button class="btn hidden" id="tSoloGo">✨ AI 타로 리딩 받기</button>
+      <button class="btn btn-ghost" id="tSoloReset">다시 섞기</button>
+    </div>
+  </section>
+
+  <!-- ===== 맞춤 타로 3: AI 리딩 및 연속 챗봇 ===== -->
+  <section id="tarotResultScreen" class="card hidden">
+    <button class="link-back" data-goto="tarotInput">← 질문 다시 쓰기</button>
+    <span class="tag">AI 타로 상담 리포트</span>
+    <div class="user-q-box">
+      <span class="q-label">질문:</span> <strong id="tResultQuestion"></strong>
+    </div>
+
+    <div class="t-picked-container" id="tPickedCardsDisplay"></div>
+
+    <div class="chatbox" id="tChatBox">
+      <div class="chat-h"><span class="chat-emoji">🔮</span><span class="chat-title">AI 타로 리더의 맞춤 리딩</span></div>
+      <div class="chat-log" id="tChatLog"></div>
+
+      <!-- 리딩 완료 후 후속 선택 버튼 -->
+      <div id="tPostActions" class="post-actions hidden">
+        <button class="btn btn-ghost" id="tNewQBtn">🔄 새로운 질문 하기</button>
+        <button class="btn" id="tMoreQBtn">💬 추가 질문 하기</button>
+      </div>
+
+      <!-- 추가 질문 대화 입력 폼 -->
+      <div id="tChatUI" class="hidden" style="margin-top:12px">
+        <div class="chat-input">
+          <textarea id="tChatInput" rows="1" placeholder="추가로 궁금한 점을 물어보세요…" maxlength="500"></textarea>
+          <button class="btn chat-send" id="tChatSend" disabled>보내기</button>
+        </div>
+      </div>
+    </div>
+    <div class="disclaimer">
+      본 상담은 LLM이 생성한 <strong>재미·오락용</strong> 타로 리딩이며, 대화 내용은 서버에 저장되지 않습니다.
+    </div>
   </section>
 
   <!-- ===== 통합 리포트 ===== -->
