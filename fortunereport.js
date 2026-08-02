@@ -158,7 +158,6 @@ function buildFortuneReport(input, picks, deps) {
 
   // ================= 종합 요약 =================
   const summary =
-    P(`📅 <b>${todayLabel}</b> 기준`) +
     P(`<b>${z.name}(${z.sym}) · ${STEMS[saju.dayMaster]} 일간</b>인 당신, 오늘의 종합 운은 <b>${stars(daily.star)}</b>입니다.`) +
     P(`사주·별자리·바이오리듬·타로가 함께 가리키는 오늘의 큰 흐름은 <b>${TG_SHORT[todayRel]}</b>이며, 지금은 ${bioDom.name} 컨디션이 ${bioDomPh.txt}인 시기입니다. ${daily.star >= 4 ? "네 신호가 대체로 순방향이라 적극적으로 움직여도 좋은 날이에요." : daily.star <= 2 ? "흐름이 다소 무거우니 벌이기보다 정비·준비에 힘을 쓰면 오히려 이득입니다." : "큰 기복 없는 무난한 흐름이니 하던 일을 차근히 이어가면 됩니다."}`) +
     P(`아래에서 <b>오늘·연애·직장·재물</b> 순으로, 좋은 점과 유의할 점을 하나씩 풀어드릴게요.`);

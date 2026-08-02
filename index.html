@@ -428,6 +428,12 @@
     min-width: 140px;
   }
 
+  /* 결과 상단 오늘 날짜 배지 */
+  .rep-date { display: inline-block; margin: 0 0 16px; padding: 5px 13px; border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent);
+    font-size: .84rem; font-weight: 700; letter-spacing: .01em; }
+  .rep-date:empty { display: none; }
+
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
@@ -660,6 +666,7 @@
     <button class="link-back" data-goto="fortuneInput">← 다시 입력</button>
     <span class="tag" id="fSub">운세 통합 리포트</span>
     <h1>나의 운세 통합 리포트</h1>
+    <p class="rep-date" id="fReportDate"></p>
     <div class="summary" id="fChips"></div>
     <div class="catbox" id="fSummary" style="margin-bottom:8px"></div>
     <div class="chart-wrap" id="fGraph"></div>
@@ -732,6 +739,7 @@
   <section id="tarotResultScreen" class="card hidden">
     <button class="link-back" data-goto="tarotInput">← 질문 다시 쓰기</button>
     <span class="tag">AI 타로 상담 리포트</span>
+    <p class="rep-date" id="tReportDate"></p>
     <div class="user-q-box">
       <span class="q-label">질문:</span> <strong id="tResultQuestion"></strong>
     </div>
@@ -776,12 +784,12 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=9"></script>
-<script src="questions.js?v=9"></script>
-<script src="saju.js?v=9"></script>
-<script src="fortune.js?v=9"></script>
-<script src="fortunereport.js?v=9"></script>
-<script src="integrate.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="questions.js?v=10"></script>
+<script src="saju.js?v=10"></script>
+<script src="fortune.js?v=10"></script>
+<script src="fortunereport.js?v=10"></script>
+<script src="integrate.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

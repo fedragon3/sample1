@@ -296,6 +296,13 @@
     $("drawSlot").textContent = drawPicks.length < 4 ? DRAW_SLOTS[drawPicks.length] : "완료 —";
   }
 
+  // 오늘 날짜 라벨 (예: "2026년 8월 2일 일요일") — 사용자의 브라우저 시각 기준
+  function todayLabel() {
+    const n = new Date();
+    const wd = ["일", "월", "화", "수", "목", "금", "토"][n.getDay()];
+    return `${n.getFullYear()}년 ${n.getMonth() + 1}월 ${n.getDate()}일 ${wd}요일`;
+  }
+
   function buildAndShowReport() {
     const deps = {
       computeSaju, tenGodCounts, tenGodOf, sajuPhases, STEM_ELEM, STEMS, TEN_GOD_KO,
@@ -303,6 +310,7 @@
     };
     const rep = buildFortuneReport(fInput, drawPicks, deps);
     fRep = rep;
+    $("fReportDate").textContent = "📅 " + todayLabel() + " 운세";
     $("fChips").innerHTML = `<div class="sum-row">${rep.chips.map((c) => `<span class="chip">${c.t}</span>`).join("")}</div>`;
     $("fSummary").innerHTML = rep.summary;
     $("fGraph").innerHTML = bioSVG(rep.bioSeries);
@@ -1057,6 +1065,7 @@
   async function startSoloReading() {
     if (tSoloPicks.length < 3) return;
     show("tarotResultScreen");
+    $("tReportDate").textContent = "📅 " + todayLabel();
 
     // 뽑힌 카드 3장 디스플레이
     const container = $("tPickedCardsDisplay");
