@@ -310,6 +310,36 @@
   .rcard-e.flip { display: inline-block; transform: rotate(180deg); }
   .rcard-body { flex: 1; }
 
+  /* 리포트 챗봇 */
+  .chatbox { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 20px; }
+  .chat-h { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+  .chat-h .chat-emoji { font-size: 1.3rem; }
+  .chat-h .chat-title { font-weight: 800; font-size: 1.1rem; }
+  .chat-intro { font-size: .84rem; color: var(--muted); line-height: 1.55; margin: 0 0 14px; }
+  .chat-log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .msg { max-width: 88%; padding: 11px 14px; border-radius: 15px; font-size: .92rem; line-height: 1.62;
+    white-space: pre-wrap; word-break: break-word; }
+  .msg.me { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 5px; }
+  .msg.ai { align-self: flex-start; background: color-mix(in srgb, var(--accent) 7%, transparent);
+    border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+  .msg.ai.typing { color: var(--muted); font-style: italic; }
+  .chat-suggest { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .chat-sug { font-size: .8rem; font-weight: 600; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .chat-sug:hover { border-color: var(--accent); color: var(--accent); }
+  .chat-input { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input textarea { flex: 1; resize: none; font: inherit; font-size: .92rem; padding: 11px 13px;
+    border-radius: 13px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    line-height: 1.5; max-height: 120px; }
+  .chat-input textarea:focus { outline: none; border-color: var(--accent); }
+  .chat-send { flex: 0 0 auto; padding: 11px 18px; border-radius: 13px; }
+  .chat-send:disabled { opacity: .5; cursor: default; box-shadow: none; }
+  .chat-note { font-size: .76rem; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
+  .chat-off { font-size: .84rem; color: var(--muted); line-height: 1.6; padding: 14px 16px;
+    border: 1px dashed var(--line); border-radius: 13px; background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .chat-off code { font-size: .82em; background: color-mix(in srgb, var(--accent) 12%, transparent);
+    padding: 1px 6px; border-radius: 5px; }
+
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
@@ -540,6 +570,23 @@
     <div class="catbox" id="fSummary" style="margin-bottom:8px"></div>
     <div class="chart-wrap" id="fGraph"></div>
     <div id="fCats"></div>
+
+    <!-- AI 챗봇 (리포트 기반) -->
+    <div class="chatbox" id="fChat">
+      <div class="chat-h"><span class="chat-emoji">💬</span><span class="chat-title">운세 상담 챗봇</span></div>
+      <p class="chat-intro">위 리포트를 바탕으로 궁금한 점을 자유롭게 물어보세요. “오늘 중요한 미팅이 있는데 어떨까?”처럼 구체적으로 물으면 더 잘 답해드려요.</p>
+      <div id="fChatOff" class="chat-off hidden"></div>
+      <div id="fChatUI" class="hidden">
+        <div class="chat-log" id="fChatLog"></div>
+        <div class="chat-suggest" id="fChatSug"></div>
+        <div class="chat-input">
+          <textarea id="fChatInput" rows="1" placeholder="궁금한 운세를 물어보세요…" maxlength="500"></textarea>
+          <button class="btn chat-send" id="fChatSend" disabled>보내기</button>
+        </div>
+        <p class="chat-note">답변은 위 리포트를 근거로 생성되며 재미·오락용입니다. 대화 내용은 서버에 저장되지 않습니다.</p>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn btn-ghost" id="fRetry">다시 입력하기</button>
     </div>
@@ -561,6 +608,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="config.js"></script>
 <script src="questions.js"></script>
 <script src="saju.js"></script>
 <script src="fortune.js"></script>

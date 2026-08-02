@@ -1,0 +1,12 @@
+name = "fortune-chat"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 배포 전 반드시 API 키를 secret 으로 등록하세요 (파일에 키를 넣지 마세요):
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#
+# 아래 vars 는 비밀이 아닌 공개 설정입니다. 배포 오리진에 맞게 바꾸세요.
+[vars]
+ALLOW_ORIGIN = "https://fedragon3.github.io"
+# ANTHROPIC_MODEL = "claude-sonnet-5"   # 모델을 서버에서 강제하려면 주석 해제
+# MAX_TOKENS = "1024"

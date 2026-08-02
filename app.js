@@ -219,7 +219,7 @@
 
   // ===== 운세 통합 리포트 컨트롤러 =====
   const DRAW_SLOTS = ["오늘의 운세", "연애운", "직장운", "재물운"];
-  let fInput = null, drawDeck = [], drawPicks = [];
+  let fInput = null, drawDeck = [], drawPicks = [], fRep = null;
 
   $("fortuneForm").addEventListener("submit", (e) => { e.preventDefault(); runFortune(); });
   $("fRetry").addEventListener("click", () => show("fortuneInput"));
@@ -293,6 +293,7 @@
       ELEMENTS, ELEM_TRAIT, getZodiac, ZODIAC, zodiacDaily, biorhythm, bioPhase, BIO, TAROT,
     };
     const rep = buildFortuneReport(fInput, drawPicks, deps);
+    fRep = rep;
     $("fChips").innerHTML = `<div class="sum-row">${rep.chips.map((c) => `<span class="chip">${c.t}</span>`).join("")}</div>`;
     $("fSummary").innerHTML = rep.summary;
     $("fGraph").innerHTML = bioSVG(rep.bioSeries);
@@ -301,6 +302,7 @@
         <div class="fcat-h"><span class="fcat-emoji">${c.emoji}</span><span class="fcat-name">${c.label}</span><span class="fcat-v ${c.verdict.cls}">${c.verdict.label}</span></div>
         ${c.body}
       </div>`).join("");
+    initChat(rep);
     show("fortuneResult");
   }
 
@@ -320,6 +322,181 @@
     return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="바이오리듬 그래프">${g}</svg>`;
   }
 
+  // ===== 리포트 기반 AI 챗봇 (서버리스 프록시 경유) =====
+  // 클라이언트에는 API 키가 없습니다. config.js 의 CHAT_ENDPOINT(프록시 URL)로만 요청하며,
+  // 키는 프록시의 서버 측 비밀로만 존재합니다.
+  const CHAT_CFG = window.FORTUNE_CHAT || {};
+  const CHAT_SUGGEST = ["오늘 하루 어떻게 보내면 좋을까?", "연애운, 조금 더 자세히 알려줘", "이직을 고민 중인데 지금이 괜찮을까?", "돈 관리에서 뭘 조심하면 될까?"];
+  let chatHistory = [];   // [{role, content}]  Anthropic messages 형식
+  let chatBusy = false;
+
+  // HTML 조각에서 사람이 읽을 순수 텍스트만 추출 (시스템 프롬프트 근거로 사용)
+  function stripHTML(html) {
+    const d = document.createElement("div");
+    d.innerHTML = html;
+    return (d.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  // 리포트를 프롬프트용 평문 근거로 직렬화
+  function reportContext(rep) {
+    const iv = fInput || {};
+    const when = `${iv.year}년 ${iv.month}월 ${iv.day}일` + (iv.hasTime ? ` ${String(iv.hour).padStart(2, "0")}시` : " (시간 모름)") + (iv.gender ? ` · ${iv.gender}` : "");
+    const chips = (rep.chips || []).map((c) => c.t).join(" · ");
+    const cats = (rep.categories || []).map((c) =>
+      `■ ${c.label} [판정: ${c.verdict.label}]\n${stripHTML(c.body)}`).join("\n\n");
+    return [
+      `[사용자 입력] ${when}`,
+      `[근거 요약] ${chips}`,
+      `[종합] ${stripHTML(rep.summary)}`,
+      `[카테고리별 해석]`,
+      cats,
+    ].join("\n");
+  }
+
+  function chatSystemPrompt(rep) {
+    return [
+      "당신은 한국어로 대화하는 다정하고 재치 있는 '운세 상담사'입니다.",
+      "아래에 이미 생성된 사용자의 운세 통합 리포트(사주·별자리·바이오리듬·타로 종합)가 주어집니다.",
+      "사용자의 질문에 이 리포트를 근거로 답하세요. 리포트에 없는 사실을 지어내지 말고,",
+      "리포트의 흐름(오늘/연애/직장/재물, 판정, 카드, 오행·십성 신호)과 일관되게 이야기하세요.",
+      "말투는 따뜻하고 구어체로, 답변은 2~4문단 정도로 실질적인 조언을 담되 장황하지 않게 합니다.",
+      "이 상담은 재미·오락 및 자기성찰용입니다. 의료·법률·투자에 대한 단정적 조언이나 확정적 예언은 피하고,",
+      "심각한 고민에는 전문가 상담을 권하세요. 리포트와 무관한 요청은 부드럽게 운세 주제로 돌려주세요.",
+      "",
+      "===== 사용자 운세 리포트(근거) =====",
+      reportContext(rep),
+      "===== 리포트 끝 =====",
+    ].join("\n");
+  }
+
+  function initChat(rep) {
+    chatHistory = [];
+    const off = $("fChatOff"), ui = $("fChatUI"), log = $("fChatLog");
+    log.innerHTML = "";
+    if (!CHAT_CFG.CHAT_ENDPOINT) {
+      // 프록시 미설정 — 키 없이 안전하게 비활성화 안내
+      ui.classList.add("hidden");
+      off.classList.remove("hidden");
+      off.innerHTML = "🔒 챗봇을 쓰려면 서버리스 프록시 주소가 필요합니다. " +
+        "<code>config.js</code> 의 <code>CHAT_ENDPOINT</code> 에 프록시 URL을 넣어 배포하세요. " +
+        "설정 방법은 저장소의 <code>proxy/README.md</code> 를 참고하세요. (API 키는 프록시에만 보관되고 이 페이지에는 저장되지 않습니다.)";
+      return;
+    }
+    off.classList.add("hidden");
+    ui.classList.remove("hidden");
+    // 첫 인사
+    addMsg("ai", "안녕하세요! 방금 나온 리포트를 함께 보고 있어요. 오늘·연애·직장·재물 무엇이든, 궁금한 걸 편하게 물어보세요 😊");
+    // 추천 질문
+    const sug = $("fChatSug");
+    sug.innerHTML = "";
+    CHAT_SUGGEST.forEach((q) => {
+      const b = document.createElement("button");
+      b.className = "chat-sug"; b.type = "button"; b.textContent = q;
+      b.addEventListener("click", () => { if (!chatBusy) { $("fChatInput").value = q; sendChat(); } });
+      sug.appendChild(b);
+    });
+  }
+
+  function addMsg(role, text) {
+    const el = document.createElement("div");
+    el.className = "msg " + (role === "me" ? "me" : "ai");
+    el.textContent = text;
+    $("fChatLog").appendChild(el);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return el;
+  }
+
+  async function sendChat() {
+    if (chatBusy || !fRep) return;
+    const inp = $("fChatInput");
+    const text = inp.value.trim();
+    if (!text) return;
+    inp.value = ""; inp.style.height = "auto";
+    addMsg("me", text);
+    chatHistory.push({ role: "user", content: text });
+    $("fChatSug").classList.add("hidden");
+
+    chatBusy = true;
+    $("fChatSend").disabled = true;
+    const aiEl = addMsg("ai", "…");
+    aiEl.classList.add("typing");
+
+    try {
+      const res = await fetch(CHAT_CFG.CHAT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: CHAT_CFG.MODEL || "claude-sonnet-5",
+          max_tokens: 1024,
+          system: chatSystemPrompt(fRep),
+          messages: chatHistory,
+          stream: true,
+        }),
+      });
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`요청 실패 (${res.status}) ${detail.slice(0, 200)}`);
+      }
+      const reply = await readStream(res.body, aiEl);
+      chatHistory.push({ role: "assistant", content: reply || "(응답 없음)" });
+    } catch (e) {
+      aiEl.classList.remove("typing");
+      aiEl.textContent = "⚠️ 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.\n(" + (e && e.message ? e.message : e) + ")";
+      // 실패한 사용자 메시지는 히스토리에서 제거해 재시도 시 중복되지 않게
+      chatHistory.pop();
+    } finally {
+      chatBusy = false;
+      $("fChatSend").disabled = $("fChatInput").value.trim() === "";
+      $("fChatInput").focus();
+    }
+  }
+
+  // Anthropic SSE 스트림을 읽어 aiEl 에 점진적으로 렌더. 최종 텍스트 반환.
+  async function readStream(body, aiEl) {
+    const reader = body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", full = "", started = false;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop(); // 마지막 미완성 라인 보류
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s.startsWith("data:")) continue;
+        const payload = s.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        let ev;
+        try { ev = JSON.parse(payload); } catch (e) { continue; }
+        if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") {
+          if (!started) { aiEl.classList.remove("typing"); aiEl.textContent = ""; started = true; }
+          full += ev.delta.text;
+          aiEl.textContent = full;
+          aiEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else if (ev.type === "error") {
+          throw new Error(ev.error && ev.error.message ? ev.error.message : "stream error");
+        }
+      }
+    }
+    if (!started) { aiEl.classList.remove("typing"); aiEl.textContent = full || "(응답 없음)"; }
+    return full;
+  }
+
+  // 챗봇 입력 이벤트
+  (function wireChat() {
+    const inp = $("fChatInput"), send = $("fChatSend");
+    if (!inp || !send) return;
+    inp.addEventListener("input", () => {
+      send.disabled = chatBusy || inp.value.trim() === "";
+      inp.style.height = "auto";
+      inp.style.height = Math.min(inp.scrollHeight, 120) + "px";
+    });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!send.disabled) sendChat(); }
+    });
+    send.addEventListener("click", sendChat);
+  })();
 
   function showReport() {
     const tci = loadLS(LS.tci), saju = loadLS(LS.saju);
