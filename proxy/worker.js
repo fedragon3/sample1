@@ -40,7 +40,9 @@ export default {
     try { body = await request.json(); }
     catch (e) { return json({ error: "invalid JSON body" }, 400, cors); }
 
-    const model = env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    // 기본 모델: gpt-oss-120b (OpenAI 오픈모델, Groq 무료). Llama 3.3 대비 한국어에
+    // 한자·키릴 등 다른 문자를 섞는 오염이 적어 순수 한글 출력에 유리하다.
+    const model = env.GROQ_MODEL || "openai/gpt-oss-120b";
     const maxTokens = clampInt(body.max_tokens, 1, 4096, Number(env.MAX_TOKENS) || 1024);
 
     const formattedMessages = [];

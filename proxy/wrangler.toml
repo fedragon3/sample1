@@ -8,5 +8,8 @@ compatibility_date = "2025-01-01"
 # 아래 vars 는 비밀이 아닌 공개 설정입니다. 배포 오리진에 맞게 바꾸세요.
 [vars]
 ALLOW_ORIGIN = "*"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# 한국어 출력이 깔끔한(한자·키릴 등 혼용이 적은) 무료 모델 우선. 마음에 안 들면
+# 아래 후보로 바꿔 시험하세요(무료): "meta-llama/llama-4-maverick-17b-128e-instruct",
+# "openai/gpt-oss-20b", "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 # MAX_TOKENS = "1024"
