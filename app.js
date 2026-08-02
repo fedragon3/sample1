@@ -471,7 +471,7 @@
     }
   }
 
-  // ===== 한자(CJK) -> 한글 음독 변환 및 강제 제거 후처리기 =====
+  // ===== 한자(CJK) & 베트남어 등 외래어 혼용 강제 후처리기 =====
   const HANJA_TO_HANGUL = {
     "運": "운", "勢": "세", "卦": "괘", "爻": "효", "占": "점", "吉": "길", "凶": "흉",
     "陰": "음", "陽": "양", "福": "복", "命": "명", "理": "리", "道": "도", "氣": "기",
@@ -493,13 +493,28 @@
     "明": "명", "暗": "암", "光": "광", "影": "영", "眞": "진", "實": "실", "虛": "허", "假": "가"
   };
 
-  function cleanHanja(str) {
+  // LLM 다국어 모델이 한글 문맥에 실수로 섞는 외래어 단어 매핑
+  const FOREIGN_MAP = [
+    { pattern: /nhìn/gi, replace: "바라" },
+    { pattern: /nhin/gi, replace: "바라" },
+    { pattern: /không/gi, replace: "없" },
+    { pattern: /khong/gi, replace: "없" },
+    { pattern: /của/gi, replace: "의" },
+    { pattern: /cua/gi, replace: "의" },
+  ];
+
+  function cleanText(str) {
     if (!str) return "";
-    // 1. 괄호 안 한자/일본어 표현 제거 (예: "(運勢)", "(漢字)") -> ""
-    let clean = str.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u30FF\s,.]+\)/g, "");
-    // 2. 자주 나오는 한자 단어 -> 대응하는 한글 음독 변환
+    let clean = str;
+    // 1. LLM 외래어 유출 단어 매핑 치환 (예: nhìn보며 -> 바라보며)
+    FOREIGN_MAP.forEach((f) => { clean = clean.replace(f.pattern, f.replace); });
+    // 2. 괄호 안 한자/외국어 표현 제거 (예: "(運勢)", "(漢字)", "(nhìn)") -> ""
+    clean = clean.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u30FF\u00C0-\u024F\u1EA0-\u1EF9\s,.]+\)/g, "");
+    // 3. 자주 나오는 한자 단어 -> 대응하는 한글 음독 변환
     clean = clean.replace(/[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/g, (ch) => HANJA_TO_HANGUL[ch] || "");
-    // 3. 미매핑 한자 및 일본어 가나 완전 제거
+    // 4. 베트남어 성조 및 기타 특수 라틴 문자 제거
+    clean = clean.replace(/[\u1EA0-\u1EF9\u00C0-\u00FF]/g, "");
+    // 5. 미매핑 한자 및 일본어 가나 완전 제거
     clean = clean.replace(/[\u3040-\u30FF]/g, "");
     return clean;
   }
@@ -529,12 +544,12 @@
         if (typeof ev.text === "string" && ev.text) {
           if (!started) { aiEl.classList.remove("typing"); aiEl.textContent = ""; started = true; }
           full += ev.text;
-          aiEl.textContent = cleanHanja(full);
+          aiEl.textContent = cleanText(full);
           aiEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       }
     }
-    const finalClean = cleanHanja(full);
+    const finalClean = cleanText(full);
     if (!started) { aiEl.classList.remove("typing"); aiEl.textContent = finalClean || "(응답 없음)"; }
     return finalClean;
   }
@@ -1114,8 +1129,8 @@
       "",
       "[언어 규정 - 필수 지침]",
       "1. 모든 답변은 오직 100% 순수 한글(한국어)로만 작성해야 합니다.",
-      "2. 중국어 한자(漢字), 일본어 문자, 간체자/번체자 등 한자 표현은 단 한 글자도 혼용하지 마세요.",
-      "3. 한자 어휘(예: 占, 爻, 運, 卦 등)가 떠오르더라도 오직 한글(예: 점, 운세, 괘, 해석)로만 표기하세요.",
+      "2. 중국어 한자(漢字), 일본어 문자, 베트남어 단어(nhìn 등), 영단어를 문장 중간에 절대 섞어 쓰지 마세요.",
+      "3. '바라보다', '들여다보다', '관찰하다' 등 완전하고 매끄러운 순수 한글 어휘만 사용하세요.",
     ].join("\n");
   }
 
