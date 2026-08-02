@@ -7,6 +7,6 @@ compatibility_date = "2025-01-01"
 #
 # 아래 vars 는 비밀이 아닌 공개 설정입니다. 배포 오리진에 맞게 바꾸세요.
 [vars]
-ALLOW_ORIGIN = "https://fedragon3.github.io"
+ALLOW_ORIGIN = "*"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 # MAX_TOKENS = "1024"
