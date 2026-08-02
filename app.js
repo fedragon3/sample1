@@ -208,8 +208,10 @@
     if (t === "home") goHome();
     else if (t === "intro") show("intro");
     else if (t === "sajuInput") show("sajuInput");
+    else if (t === "tarotInput") show("tarotInput");
     else if (t === "report") showReport();
     else if (t === "fortuneInput") showFortuneInput();
+    else if (t) show(t);
   }
   function wireGoto(root) {
     root.querySelectorAll("[data-goto]").forEach((b) => {
