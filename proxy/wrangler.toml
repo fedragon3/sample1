@@ -2,14 +2,11 @@ name = "fortune-chat"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
-# 배포 전 반드시 무료 Gemini 키를 secret 으로 등록하세요 (파일에 키를 넣지 마세요):
-#   npx wrangler secret put GEMINI_API_KEY
+# 배포 전 Groq 키를 secret 으로 등록하세요 (무료 1초 발급: https://console.groq.com/keys):
+#   npx wrangler secret put GROQ_API_KEY
 #
 # 아래 vars 는 비밀이 아닌 공개 설정입니다. 배포 오리진에 맞게 바꾸세요.
 [vars]
 ALLOW_ORIGIN = "https://fedragon3.github.io"
-GEMINI_MODEL = "gemini-2.5-flash"   # 무료/유료 티어 대상 모델 (또는 "gemini-flash-latest")
+GROQ_MODEL = "llama-3.3-70b-versatile"
 # MAX_TOKENS = "1024"
-
-[placement]
-mode = "smart"

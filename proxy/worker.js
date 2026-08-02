@@ -1,28 +1,23 @@
 /*
- * 운세 챗봇용 서버리스 프록시 (Cloudflare Worker) — 무료 티어 Google Gemini 중계.
+ * 운세 챗봇용 서버리스 프록시 (Cloudflare Worker) — 초고속 무료 Groq API 중계.
  *
- * 목적: API 키를 브라우저에 노출하지 않는다.
- *   - 키는 Worker 의 서버 측 비밀(secret) GEMINI_API_KEY 로만 존재한다.
- *   - 브라우저(config.js 의 CHAT_ENDPOINT)는 이 Worker 로만 요청하며 키를 모른다.
- *   - Worker 가 키를 붙여 Gemini 로 중계하고, 응답을 '중립 스트림'으로 돌려준다.
+ * 목적: API 키를 브라우저에 노출하지 않으며, 구글 Gemini의 Cloudflare IP 차단 문제를 완전 우회합니다.
+ *   - 키는 Worker 의 서버 측 비밀(secret) GROQ_API_KEY 로만 존재합니다.
+ *   - Groq API(Llama 3.3 70B 모델 등)는 지리적/IP 차단이 없어 한국 및 Cloudflare Worker에서 100% 동작합니다.
  *
- * 프로토콜(중립 포맷 — 특정 제공사에 종속되지 않음):
+ * 프로토콜(중립 포맷 — 클라이언트 수정 필요 없음):
  *   요청  (브라우저 → Worker):  { system: string, messages: [{role:"user"|"assistant", content:string}] }
  *   응답  (Worker → 브라우저):  text/event-stream, 각 줄 `data: {"text":"..."}`, 종료 `data: [DONE]`
  *                              오류는 `data: {"error":"..."}`
- *   → 나중에 백엔드(모델/제공사)를 바꿔도 브라우저 코드는 그대로 둘 수 있다.
- *
- * 무료 키 발급·배포: proxy/README.md 참고.
  *
  * 환경 변수 / 비밀:
- *   GEMINI_API_KEY   (필수, secret)  — Google AI Studio 무료 API 키
+ *   GROQ_API_KEY     (필수, secret)  — Groq Console (https://console.groq.com/keys) 무료 API 키 (gsk_...)
  *   ALLOW_ORIGIN     (선택)          — CORS 허용 오리진. 예) "https://fedragon3.github.io"
- *                                      미설정 시 "*" (개발 편의용, 배포 시 지정 권장)
- *   GEMINI_MODEL     (선택)          — 기본 "gemini-2.5-flash" (무료 티어 대상, 또는 "gemini-flash-latest")
+ *   GROQ_MODEL       (선택)          — 기본 "llama-3.3-70b-versatile"
  *   MAX_TOKENS       (선택)          — 응답 최대 토큰 (기본 1024)
  */
 
-const GEMINI_HOST = "https://generativelanguage.googleapis.com/v1beta/models";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 export default {
   async fetch(request, env) {
@@ -37,30 +32,48 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method !== "POST") return json({ error: "POST only" }, 405, cors);
-    if (!env.GEMINI_API_KEY) return json({ error: "server misconfigured: GEMINI_API_KEY not set" }, 500, cors);
+
+    const apiKey = env.GROQ_API_KEY || env.GEMINI_API_KEY;
+    if (!apiKey) return json({ error: "server misconfigured: GROQ_API_KEY secret not set" }, 500, cors);
 
     let body;
     try { body = await request.json(); }
     catch (e) { return json({ error: "invalid JSON body" }, 400, cors); }
 
-    const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+    const model = env.GROQ_MODEL || "llama-3.3-70b-versatile";
     const maxTokens = clampInt(body.max_tokens, 1, 4096, Number(env.MAX_TOKENS) || 1024);
-    const contents = toGeminiContents(body.messages);
-    if (!contents.length) return json({ error: "messages required" }, 400, cors);
+
+    const formattedMessages = [];
+    if (typeof body.system === "string" && body.system.trim()) {
+      formattedMessages.push({ role: "system", content: body.system.trim() });
+    }
+
+    if (Array.isArray(body.messages)) {
+      body.messages.forEach((m) => {
+        if (m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string") {
+          formattedMessages.push({ role: m.role, content: m.content });
+        }
+      });
+    }
+
+    if (formattedMessages.length === 0) return json({ error: "messages required" }, 400, cors);
 
     const payload = {
-      contents,
-      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.9 },
+      model,
+      messages: formattedMessages,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      stream: true,
     };
-    if (typeof body.system === "string" && body.system.trim()) {
-      payload.system_instruction = { parts: [{ text: body.system }] };
-    }
 
     let upstream;
     try {
-      upstream = await fetch(`${GEMINI_HOST}/${model}:streamGenerateContent?alt=sse`, {
+      upstream = await fetch(GROQ_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
         body: JSON.stringify(payload),
       });
     } catch (e) {
@@ -69,10 +82,10 @@ export default {
 
     if (!upstream.ok || !upstream.body) {
       const detail = await upstream.text().catch(() => "");
-      return json({ error: `gemini ${upstream.status}: ${detail.slice(0, 300)}` }, 502, cors);
+      return json({ error: `groq ${upstream.status}: ${detail.slice(0, 300)}` }, 502, cors);
     }
 
-    // Gemini 의 SSE(candidates[].content.parts[].text)를 중립 스트림으로 변환.
+    // OpenAI SSE 포맷을 클라이언트용 중립 스트림으로 변환
     const { readable, writable } = new TransformStream();
     streamNeutral(upstream.body, writable);
     return new Response(readable, {
@@ -90,7 +103,7 @@ async function streamNeutral(upstreamBody, writable) {
   const send = (obj) => writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
   let buf = "";
   try {
-    for (; ;) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
@@ -103,20 +116,18 @@ async function streamNeutral(upstreamBody, writable) {
         if (!p || p === "[DONE]") continue;
         let ev;
         try { ev = JSON.parse(p); } catch (e) { continue; }
-        const parts = ev?.candidates?.[0]?.content?.parts;
-        if (Array.isArray(parts)) {
-          for (const part of parts) {
-            if (typeof part.text === "string" && part.text) await send({ text: part.text });
-          }
+        const text = ev?.choices?.[0]?.delta?.content;
+        if (typeof text === "string" && text) {
+          await send({ text });
         }
-        if (ev?.error) await send({ error: ev.error.message || "gemini error" });
+        if (ev?.error) await send({ error: ev.error.message || "groq error" });
       }
     }
   } catch (e) {
-    try { await send({ error: String(e) }); } catch (_) { }
+    try { await send({ error: String(e) }); } catch (_) {}
   } finally {
-    try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch (_) { }
-    try { await writer.close(); } catch (_) { }
+    try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch (_) {}
+    try { await writer.close(); } catch (_) {}
   }
 }
 
@@ -128,13 +139,4 @@ function clampInt(v, lo, hi, dflt) {
   const n = Number.parseInt(v, 10);
   if (!Number.isFinite(n)) return dflt;
   return Math.max(lo, Math.min(hi, n));
-}
-
-// {role:"user"|"assistant", content} → Gemini contents({role:"user"|"model", parts})
-function toGeminiContents(arr) {
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .slice(-20)
-    .map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content.slice(0, 4000) }] }));
 }
