@@ -290,7 +290,7 @@
   function buildAndShowReport() {
     const deps = {
       computeSaju, tenGodCounts, tenGodOf, sajuPhases, STEM_ELEM, STEMS, TEN_GOD_KO,
-      getZodiac, ZODIAC, zodiacDaily, biorhythm, bioPhase, BIO, TAROT,
+      ELEMENTS, ELEM_TRAIT, getZodiac, ZODIAC, zodiacDaily, biorhythm, bioPhase, BIO, TAROT,
     };
     const rep = buildFortuneReport(fInput, drawPicks, deps);
     $("fChips").innerHTML = `<div class="sum-row">${rep.chips.map((c) => `<span class="chip">${c.t}</span>`).join("")}</div>`;
