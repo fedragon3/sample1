@@ -495,6 +495,10 @@
 
   // LLM 다국어 모델이 한글 문맥에 실수로 섞는 외래어 단어 매핑
   const FOREIGN_MAP = [
+    { pattern: /показ합니다/gi, replace: "보여줍니다" },
+    { pattern: /показывает/gi, replace: "보여줍니다" },
+    { pattern: /показ/gi, replace: "보여줌" },
+    { pattern: /바라하는/gi, replace: "바라보는" },
     { pattern: /nhìn/gi, replace: "바라" },
     { pattern: /nhin/gi, replace: "바라" },
     { pattern: /không/gi, replace: "없" },
@@ -506,16 +510,14 @@
   function cleanText(str) {
     if (!str) return "";
     let clean = str;
-    // 1. LLM 외래어 유출 단어 매핑 치환 (예: nhìn보며 -> 바라보며)
+    // 1. LLM 외래어 유출 단어 매핑 치환 (예: nhìn보며 -> 바라보며, показ합니다 -> 보여줍니다, 바라하는 -> 바라보는)
     FOREIGN_MAP.forEach((f) => { clean = clean.replace(f.pattern, f.replace); });
     // 2. 괄호 안 한자/외국어 표현 제거 (예: "(運勢)", "(漢字)", "(nhìn)") -> ""
-    clean = clean.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u30FF\u00C0-\u024F\u1EA0-\u1EF9\s,.]+\)/g, "");
+    clean = clean.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u30FF\u0400-\u04FF\u00C0-\u024F\u1EA0-\u1EF9\s,.]+\)/g, "");
     // 3. 자주 나오는 한자 단어 -> 대응하는 한글 음독 변환
     clean = clean.replace(/[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/g, (ch) => HANJA_TO_HANGUL[ch] || "");
-    // 4. 베트남어 성조 및 기타 특수 라틴 문자 제거
-    clean = clean.replace(/[\u1EA0-\u1EF9\u00C0-\u00FF]/g, "");
-    // 5. 미매핑 한자 및 일본어 가나 완전 제거
-    clean = clean.replace(/[\u3040-\u30FF]/g, "");
+    // 4. 키릴 문자(러시아어), 베트남어 성조, 일본어 가나 등 미매핑 외국어 문자 완전 강제 제거
+    clean = clean.replace(/[\u0400-\u04FF\u0500-\u052F\u1EA0-\u1EF9\u00C0-\u00FF\u3040-\u30FF]/g, "");
     return clean;
   }
 
