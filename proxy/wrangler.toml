@@ -8,5 +8,8 @@ compatibility_date = "2025-01-01"
 # 아래 vars 는 비밀이 아닌 공개 설정입니다. 배포 오리진에 맞게 바꾸세요.
 [vars]
 ALLOW_ORIGIN = "https://fedragon3.github.io"
-GEMINI_MODEL = "gemini-2.5-flash"   # 무료 티어 대상 모델 (또는 "gemini-flash-latest")
+GEMINI_MODEL = "gemini-2.5-flash"   # 무료/유료 티어 대상 모델 (또는 "gemini-flash-latest")
 # MAX_TOKENS = "1024"
+
+[placement]
+mode = "smart"
