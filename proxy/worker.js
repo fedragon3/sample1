@@ -43,7 +43,7 @@ export default {
     try { body = await request.json(); }
     catch (e) { return json({ error: "invalid JSON body" }, 400, cors); }
 
-    const model = env.GEMINI_MODEL || "gemini-1.5-flash";
+    const model = env.GEMINI_MODEL || "gemini-2.5-flash";
     const maxTokens = clampInt(body.max_tokens, 1, 4096, Number(env.MAX_TOKENS) || 1024);
     const contents = toGeminiContents(body.messages);
     if (!contents.length) return json({ error: "messages required" }, 400, cors);
@@ -90,7 +90,7 @@ async function streamNeutral(upstreamBody, writable) {
   const send = (obj) => writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
   let buf = "";
   try {
-    for (;;) {
+    for (; ;) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
@@ -113,10 +113,10 @@ async function streamNeutral(upstreamBody, writable) {
       }
     }
   } catch (e) {
-    try { await send({ error: String(e) }); } catch (_) {}
+    try { await send({ error: String(e) }); } catch (_) { }
   } finally {
-    try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch (_) {}
-    try { await writer.close(); } catch (_) {}
+    try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch (_) { }
+    try { await writer.close(); } catch (_) { }
   }
 }
 
