@@ -217,91 +217,91 @@
     });
   }
 
-  // ===== 운세 종합 컨트롤러 =====
+  // ===== 운세 통합 리포트 컨트롤러 =====
+  const DRAW_SLOTS = ["오늘의 운세", "연애운", "직장운", "재물운"];
+  let fInput = null, drawDeck = [], drawPicks = [];
+
   $("fortuneForm").addEventListener("submit", (e) => { e.preventDefault(); runFortune(); });
   $("fRetry").addEventListener("click", () => show("fortuneInput"));
+  $("fNoTime").addEventListener("change", (e) => { $("fHour").disabled = e.target.checked; });
+  $("drawReset").addEventListener("click", setupDraw);
+  $("drawGo").addEventListener("click", buildAndShowReport);
 
   function showFortuneInput() {
     const saju = loadLS(LS.saju);
     if (saju && saju.input) {
       $("fYear").value = saju.input.year; $("fMonth").value = saju.input.month; $("fDay").value = saju.input.day;
+      if (saju.input.hasTime) $("fHour").value = saju.input.hour;
+      $("fNoTime").checked = !saju.input.hasTime; $("fHour").disabled = !saju.input.hasTime;
+      if (saju.input.gender) $("fGender").value = saju.input.gender;
     }
     show("fortuneInput");
   }
 
   function runFortune() {
-    const v = { year: parseInt($("fYear").value, 10), month: parseInt($("fMonth").value, 10), day: parseInt($("fDay").value, 10) };
+    const hasTime = !$("fNoTime").checked;
+    const v = {
+      year: parseInt($("fYear").value, 10), month: parseInt($("fMonth").value, 10), day: parseInt($("fDay").value, 10),
+      hour: hasTime ? (parseInt($("fHour").value, 10) || 0) : 0, minute: 0, hasTime, gender: $("fGender").value,
+    };
     if (!Number.isFinite(v.year) || v.year < 1900 || v.year > 2100) return toast("연도는 1900~2100 사이로 입력해 주세요.");
     if (!Number.isFinite(v.month) || v.month < 1 || v.month > 12) return toast("월을 1~12로 입력해 주세요.");
     const dmax = new Date(v.year, v.month, 0).getDate();
     if (!Number.isFinite(v.day) || v.day < 1 || v.day > dmax) return toast(`${v.month}월은 1~${dmax}일까지 입력할 수 있어요.`);
-    fortuneState = { input: v, r: buildFortune(v) };
-    renderFortune();
-    show("fortuneResult");
+    if (hasTime && (v.hour < 0 || v.hour > 23)) return toast("시(時)는 0~23으로 입력해 주세요.");
+    fInput = v;
+    setupDraw();
+    show("tarotDraw");
   }
 
-  let fortuneState = null;
-
-  function renderFortune() {
-    const r = fortuneState.r;
-    $("fSummary").innerHTML = `<div class="cat-badge lv-star">${r.dateKey}</div><p class="rbody">${r.summary}</p>`;
-
-    const cats = [
-      { id: "zodiac", label: "별자리", emoji: "⭐" },
-      { id: "bio", label: "바이오리듬", emoji: "📈" },
-      { id: "tarot", label: "타로", emoji: "🎴" },
-    ];
-    const tabs = $("fTabs");
-    tabs.innerHTML = "";
-    cats.forEach((c, idx) => {
-      const b = document.createElement("button");
-      b.className = "tab" + (idx === 0 ? " active" : "");
-      b.innerHTML = `<span class="t-emoji">${c.emoji}</span>${c.label}`;
-      b.addEventListener("click", () => selectFortune(cats, idx, tabs));
-      tabs.appendChild(b);
+  function setupDraw() {
+    drawDeck = drawTarot((Math.random() * 0x7fffffff) >>> 0, 8); // 8장 face-down
+    drawPicks = [];
+    $("drawGo").classList.add("hidden");
+    updateDrawStatus();
+    const el = $("tdeck");
+    el.innerHTML = "";
+    drawDeck.forEach((cd, i) => {
+      const c = TAROT[cd.card];
+      const f = document.createElement("div");
+      f.className = "tflip";
+      f.innerHTML = `<div class="tflip-in">
+        <div class="tface tf-back"></div>
+        <div class="tface tf-front"><span class="fe">${c.e}</span><span class="fn">${c.n}</span><span class="fd ${cd.reversed ? "lv-lo" : "lv-hi"}">${cd.reversed ? "역" : "정"}</span></div>
+      </div>`;
+      f.addEventListener("click", () => pickCard(f, cd));
+      el.appendChild(f);
     });
-    selectFortune(cats, 0, tabs);
   }
 
-  function selectFortune(cats, idx, tabs) {
-    Array.prototype.forEach.call(tabs.children, (b, i) => b.classList.toggle("active", i === idx));
-    const id = cats[idx].id;
-    if (id === "zodiac") $("fCat").innerHTML = zodiacHTML();
-    else if (id === "bio") $("fCat").innerHTML = bioHTML();
-    else { $("fCat").innerHTML = tarotHTML(); wireTarotRedraw(); }
+  function pickCard(el, cd) {
+    if (el.classList.contains("used") || drawPicks.length >= 4) return;
+    el.classList.add("flipped", "used", "chosen");
+    drawPicks.push({ card: cd.card, reversed: cd.reversed });
+    updateDrawStatus();
+    if (drawPicks.length >= 4) $("drawGo").classList.remove("hidden");
   }
 
-  function zodiacHTML() {
-    const z = fortuneState.r.zodiac, d = z.daily;
-    return `
-      <div class="fbig">
-        <div class="fz-sym">${z.sym}</div>
-        <div class="fz-name">${z.name}</div>
-        <div class="fz-el">${z.en} · ${z.elem}자리</div>
-        <div class="fstars">${"★".repeat(d.star)}${"☆".repeat(5 - d.star)}</div>
-      </div>
-      <p class="rbody">${z.trait}</p>
-      <p class="rbody"><b>오늘의 운세</b> — ${d.line}</p>
-      <div class="luck">🍀 행운의 색 <b>${d.color}</b> · 숫자 <b>${d.num}</b></div>`;
+  function updateDrawStatus() {
+    $("drawCount").textContent = `${drawPicks.length} / 4`;
+    $("drawSlot").textContent = drawPicks.length < 4 ? DRAW_SLOTS[drawPicks.length] : "완료 —";
   }
 
-  function bioHTML() {
-    const bio = fortuneState.r.bio;
-    const legend = BIO.map((b) => `<span><i class="bio-dot" style="background:${b.color}"></i>${b.name}</span>`).join("");
-    const rows = BIO.map((b) => {
-      const v = bio.now[b.key], ph = bioPhase(v);
-      const w = Math.abs(v) / 2; // 0~50%
-      const bar = v >= 0
-        ? `<span style="left:50%;width:${w}%;background:${b.color}"></span>`
-        : `<span style="right:50%;width:${w}%;background:${b.color}"></span>`;
-      return `<div class="bio-row"><span class="bio-nm" style="color:${b.color}">${b.name}</span>
-        <div class="bio-bar"><i></i>${bar}</div>
-        <span class="bio-val">${v > 0 ? "+" : ""}${v}% ${ph.txt}</span></div>`;
-    }).join("");
-    return `<div class="chart-wrap">${bioSVG(bio.series)}</div>
-      <div class="bio-legend">${legend}</div>
-      <div class="bio-rows">${rows}</div>
-      <p class="rbody muted small" style="margin-top:12px">곡선이 위(고조)면 해당 기운이 활발하고, 아래(저조)면 재충전이 필요한 시기입니다. 0선을 지나는 ‘전환일’엔 컨디션이 불안정할 수 있어요.</p>`;
+  function buildAndShowReport() {
+    const deps = {
+      computeSaju, tenGodCounts, tenGodOf, sajuPhases, STEM_ELEM, STEMS, TEN_GOD_KO,
+      getZodiac, ZODIAC, zodiacDaily, biorhythm, bioPhase, BIO, TAROT,
+    };
+    const rep = buildFortuneReport(fInput, drawPicks, deps);
+    $("fChips").innerHTML = `<div class="sum-row">${rep.chips.map((c) => `<span class="chip">${c.t}</span>`).join("")}</div>`;
+    $("fSummary").innerHTML = rep.summary;
+    $("fGraph").innerHTML = bioSVG(rep.bioSeries);
+    $("fCats").innerHTML = rep.categories.map((c) => `
+      <div class="fcat">
+        <div class="fcat-h"><span class="fcat-emoji">${c.emoji}</span><span class="fcat-name">${c.label}</span><span class="fcat-v ${c.verdict.cls}">${c.verdict.label}</span></div>
+        ${c.body}
+      </div>`).join("");
+    show("fortuneResult");
   }
 
   function bioSVG(series) {
@@ -320,32 +320,6 @@
     return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="바이오리듬 그래프">${g}</svg>`;
   }
 
-  function tarotHTML() {
-    const cards = fortuneState.r.tarot.map((t) => {
-      const c = TAROT[t.card], mean = t.reversed ? c.rev : c.up;
-      const dir = t.reversed
-        ? `<span class="tc-dir lv-lo">역방향</span>`
-        : `<span class="tc-dir lv-hi">정방향</span>`;
-      return `<div class="tcard${t.reversed ? " rev" : ""}">
-        <div class="tc-pos">${t.pos}</div>
-        <div class="tc-emoji${t.reversed ? " flip" : ""}">${c.e}</div>
-        <div class="tc-name">${c.n}</div>${dir}
-        <div class="tc-mean">${mean}</div>
-      </div>`;
-    }).join("");
-    return `<p class="rbody muted small">과거 · 현재 · 미래 3장 스프레드입니다.</p>
-      <div class="tcards">${cards}</div>
-      <div class="center tredraw"><button class="btn btn-ghost" id="tRedraw">🔄 카드 다시 뽑기</button></div>`;
-  }
-
-  function wireTarotRedraw() {
-    const btn = $("tRedraw");
-    if (btn) btn.addEventListener("click", () => {
-      fortuneState.r.tarot = drawTarot((Math.random() * 0x7fffffff) >>> 0, 3);
-      $("fCat").innerHTML = tarotHTML();
-      wireTarotRedraw();
-    });
-  }
 
   function showReport() {
     const tci = loadLS(LS.tci), saju = loadLS(LS.saju);
@@ -412,7 +386,7 @@
   }
 
   // === 화면 전환 ===
-  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report", "fortuneInput", "fortuneResult"];
+  const SCREENS = ["home", "intro", "quiz", "result", "sajuInput", "sajuResult", "report", "fortuneInput", "tarotDraw", "fortuneResult"];
   function show(which) {
     SCREENS.forEach((id) => {
       const el = $(id);

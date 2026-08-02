@@ -275,6 +275,41 @@
   .tc-mean { font-size: .8rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
   .tredraw { margin-top: 4px; }
 
+  /* 타로 뽑기 (플립 애니메이션) */
+  .draw-status { text-align: center; font-size: .9rem; margin: 8px 0 14px; color: var(--muted); }
+  .draw-status b { color: var(--accent); }
+  .tdeck { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: 6px 0 18px; }
+  @media (max-width: 380px) { .tdeck { grid-template-columns: repeat(3, 1fr); } }
+  .tflip { aspect-ratio: 2 / 3.1; perspective: 800px; cursor: pointer; }
+  .tflip-in { position: relative; width: 100%; height: 100%; transition: transform .5s; transform-style: preserve-3d; }
+  .tflip.flipped .tflip-in { transform: rotateY(180deg); }
+  .tflip.used { cursor: default; }
+  .tflip.used:not(.chosen) { opacity: .35; }
+  .tface { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .tf-back { background: linear-gradient(140deg, var(--accent), #4a3a80); color: #fff; font-size: 1.5rem;
+    border: 2px solid color-mix(in srgb, var(--accent) 60%, #000); }
+  .tf-back::after { content: "✦"; }
+  .tf-front { transform: rotateY(180deg); background: var(--card); border: 2px solid var(--accent); padding: 4px; text-align: center; }
+  .tf-front .fe { font-size: 1.7rem; line-height: 1; }
+  .tf-front .fn { font-size: .62rem; font-weight: 800; margin-top: 4px; line-height: 1.1; }
+  .tf-front .fd { font-size: .55rem; font-weight: 700; margin-top: 2px; padding: 0 5px; border-radius: 999px; }
+  .tflip.chosen { animation: pop .35s; }
+  @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.08)} 100%{transform:scale(1)} }
+
+  /* 리포트 카테고리 + 카드 인용 */
+  .fcat { border-top: 1px solid var(--line); padding: 18px 0; }
+  .fcat:first-of-type { border-top: 0; }
+  .fcat-h { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+  .fcat-emoji { font-size: 1.3rem; }
+  .fcat-name { font-weight: 800; font-size: 1.1rem; }
+  .fcat-v { margin-left: auto; font-size: .72rem; font-weight: 800; padding: 2px 10px; border-radius: 999px; }
+  .rcard { display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 11px 13px;
+    border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--accent) 5%, transparent); }
+  .rcard-e { font-size: 1.9rem; line-height: 1; flex: 0 0 auto; }
+  .rcard-e.flip { display: inline-block; transform: rotate(180deg); }
+  .rcard-body { flex: 1; }
+
   .hidden { display: none !important; }
   footer { text-align: center; margin-top: 34px; color: var(--muted); font-size: .8rem; line-height: 1.7; }
   .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
@@ -305,9 +340,9 @@
         <span class="mc-go">들어가기 →</span>
       </button>
       <button class="menu-card" data-goto="fortuneInput">
-        <span class="mc-emoji">✨</span>
-        <h3>오늘의 운세 종합</h3>
-        <p>별자리 · 바이오리듬 · 타로를 한 번에. 생년월일로 오늘의 흐름을 봅니다. (재미·오락용)</p>
+        <span class="mc-emoji">🔮</span>
+        <h3>운세 통합 리포트</h3>
+        <p>사주·별자리·바이오리듬·타로를 <b>하나로 종합</b>해 오늘·연애·직장·재물운을 풀어드립니다. 타로는 직접 뽑아요! (재미·오락용)</p>
         <span class="mc-go">들어가기 →</span>
       </button>
       <button class="menu-card wide" data-goto="report">
@@ -455,34 +490,60 @@
   <!-- ===== 운세 종합 입력 ===== -->
   <section id="fortuneInput" class="card hidden">
     <button class="link-back" data-goto="home">← 메뉴</button>
-    <span class="tag">오늘의 운세 종합</span>
-    <h1>생년월일을 입력하세요</h1>
-    <p class="muted small">별자리·바이오리듬·타로를 함께 봅니다. 입력값은 저장·전송되지 않습니다.</p>
+    <span class="tag">운세 통합 리포트</span>
+    <h1>생년월일시를 입력하세요</h1>
+    <p class="muted small">사주·별자리·바이오리듬 계산에 쓰입니다. 입력값은 저장·전송되지 않습니다.</p>
     <form id="fortuneForm" class="sform" autocomplete="off">
       <div class="frow f3">
         <label>연도(양력)<input id="fYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="1990" required /></label>
         <label>월<input id="fMonth" type="number" inputmode="numeric" min="1" max="12" placeholder="6" required /></label>
         <label>일<input id="fDay" type="number" inputmode="numeric" min="1" max="31" placeholder="15" required /></label>
       </div>
-      <button class="btn" type="submit">운세 보기</button>
+      <div class="frow f3">
+        <label>태어난 시(0~23)<input id="fHour" type="number" inputmode="numeric" min="0" max="23" placeholder="14" /></label>
+        <label>성별
+          <select id="fGender">
+            <option value="">선택 안 함</option>
+            <option value="남">남</option>
+            <option value="여">여</option>
+          </select>
+        </label>
+        <label class="chk"><input id="fNoTime" type="checkbox" /> 시간 모름</label>
+      </div>
+      <button class="btn" type="submit">타로 뽑으러 가기 →</button>
     </form>
     <div class="disclaimer">
-      ⚠️ 별자리·바이오리듬·타로 결과는 <strong>재미·오락 및 자기성찰</strong>을 위한 것입니다.
+      ⚠️ 통합 리포트는 <strong>재미·오락 및 자기성찰</strong>을 위한 것이며, 전문 상담을 대체하지 않습니다.
     </div>
   </section>
 
-  <!-- ===== 운세 종합 결과 ===== -->
+  <!-- ===== 타로 카드 뽑기 ===== -->
+  <section id="tarotDraw" class="card hidden">
+    <button class="link-back" data-goto="fortuneInput">← 다시 입력</button>
+    <span class="tag">타로 카드 뽑기</span>
+    <h1>카드를 <span id="drawTotal">4</span>장 뽑아 주세요</h1>
+    <p class="muted small">마음이 가는 카드를 순서대로 터치하세요. 순서: <b>오늘 → 연애 → 직장 → 재물</b>.</p>
+    <div class="draw-status"><span id="drawSlot">오늘의 운세</span> 카드를 고르세요 · <b id="drawCount">0 / 4</b></div>
+    <div class="tdeck" id="tdeck"></div>
+    <div class="actions">
+      <button class="btn hidden" id="drawGo">🔮 통합 리포트 보기</button>
+      <button class="btn btn-ghost" id="drawReset">다시 섞기</button>
+    </div>
+  </section>
+
+  <!-- ===== 운세 통합 리포트 ===== -->
   <section id="fortuneResult" class="card hidden">
     <button class="link-back" data-goto="fortuneInput">← 다시 입력</button>
-    <span class="tag" id="fSub">오늘의 운세</span>
-    <h1>오늘의 운세 종합</h1>
-    <div class="catbox" id="fSummary" style="margin-bottom:16px"></div>
-    <div class="tabs" id="fTabs"></div>
-    <div class="catbox" id="fCat"></div>
+    <span class="tag" id="fSub">운세 통합 리포트</span>
+    <h1>나의 운세 통합 리포트</h1>
+    <div class="summary" id="fChips"></div>
+    <div class="catbox" id="fSummary" style="margin-bottom:8px"></div>
+    <div class="chart-wrap" id="fGraph"></div>
+    <div id="fCats"></div>
     <div class="actions">
       <button class="btn btn-ghost" id="fRetry">다시 입력하기</button>
     </div>
-    <div class="disclaimer">자동 생성된 <strong>참고·오락용</strong> 해석이며, 전문 상담을 대체하지 않습니다.</div>
+    <div class="disclaimer">사주·별자리·바이오리듬·타로를 종합해 자동 생성된 <strong>참고·오락용</strong> 해석이며, 전문 상담을 대체하지 않습니다.</div>
   </section>
 
   <!-- ===== 통합 리포트 ===== -->
@@ -503,6 +564,7 @@
 <script src="questions.js"></script>
 <script src="saju.js"></script>
 <script src="fortune.js"></script>
+<script src="fortunereport.js"></script>
 <script src="integrate.js"></script>
 <script src="app.js"></script>
 </body>
