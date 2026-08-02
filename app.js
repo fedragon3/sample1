@@ -62,10 +62,17 @@
     if (confirm("검사를 중단하고 처음으로 돌아갈까요? 지금까지의 응답은 사라집니다.")) goHome();
   });
 
-  // 홈(메인 메뉴) 이동
+  // 홈(메인 메뉴) 및 페이지 간 이동 (전역 클릭 델리게이션)
   function goHome() { history.replaceState(null, "", location.pathname); show("home"); }
-  document.querySelectorAll("[data-goto]").forEach((btn) => {
-    btn.addEventListener("click", () => navTo(btn.getAttribute("data-goto")));
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-goto]");
+    if (btn) {
+      const target = btn.getAttribute("data-goto");
+      if (target) {
+        e.preventDefault();
+        navTo(target);
+      }
+    }
   });
 
   // ===== 저장(로컬) — 통합 리포트용 =====
