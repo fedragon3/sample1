@@ -62,7 +62,7 @@ window.FORTUNE_CHAT = {
 |------|------|------|
 | `GEMINI_API_KEY` | Worker **secret** (필수) | AI Studio 무료 키. `wrangler secret put` 으로만 등록 |
 | `ALLOW_ORIGIN` | `wrangler.toml` `[vars]` | CORS 허용 오리진. 배포 주소로 지정 권장(기본 `*`) |
-| `GEMINI_MODEL` | `wrangler.toml` `[vars]` (선택) | 기본 `gemini-2.5-flash` (무료 티어 대상) |
+| `GEMINI_MODEL` | `wrangler.toml` `[vars]` (선택) | 기본 `gemini-1.5-flash` (무료 티어 대상) |
 | `MAX_TOKENS` | `wrangler.toml` `[vars]` (선택) | 응답 토큰 상한 (기본 1024) |
 
 ## 클라이언트 ↔ 프록시 규약 (중립 포맷)

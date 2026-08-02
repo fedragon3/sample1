@@ -325,10 +325,15 @@
   // ===== 리포트 기반 AI 챗봇 (서버리스 프록시 경유) =====
   // 클라이언트에는 API 키가 없습니다. config.js 의 CHAT_ENDPOINT(프록시 URL)로만 요청하며,
   // 키는 프록시의 서버 측 비밀로만 존재합니다.
-  const CHAT_CFG = window.FORTUNE_CHAT || {};
   const CHAT_SUGGEST = ["오늘 하루 어떻게 보내면 좋을까?", "연애운, 조금 더 자세히 알려줘", "이직을 고민 중인데 지금이 괜찮을까?", "돈 관리에서 뭘 조심하면 될까?"];
   let chatHistory = [];   // [{role, content}]  Anthropic messages 형식
   let chatBusy = false;
+
+  function getChatEndpoint() {
+    return (window.FORTUNE_CHAT && typeof window.FORTUNE_CHAT.CHAT_ENDPOINT === "string")
+      ? window.FORTUNE_CHAT.CHAT_ENDPOINT.trim()
+      : "";
+  }
 
   // HTML 조각에서 사람이 읽을 순수 텍스트만 추출 (시스템 프롬프트 근거로 사용)
   function stripHTML(html) {
@@ -373,7 +378,8 @@
     chatHistory = [];
     const off = $("fChatOff"), ui = $("fChatUI"), log = $("fChatLog");
     log.innerHTML = "";
-    if (!CHAT_CFG.CHAT_ENDPOINT) {
+    const endpoint = getChatEndpoint();
+    if (!endpoint) {
       // 프록시 미설정 — 키 없이 안전하게 비활성화 안내
       ui.classList.add("hidden");
       off.classList.remove("hidden");
@@ -408,6 +414,8 @@
 
   async function sendChat() {
     if (chatBusy || !fRep) return;
+    const endpoint = getChatEndpoint();
+    if (!endpoint) return;
     const inp = $("fChatInput");
     const text = inp.value.trim();
     if (!text) return;
@@ -422,7 +430,7 @@
     aiEl.classList.add("typing");
 
     try {
-      const res = await fetch(CHAT_CFG.CHAT_ENDPOINT, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // 중립 포맷: 모델·키는 프록시가 결정/보관한다. 클라이언트는 근거와 대화만 보낸다.
