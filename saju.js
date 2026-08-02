@@ -352,7 +352,7 @@ function buildCategories(r) {
   const today = {
     id: "today", label: "오늘의 운세", emoji: "📅",
     badge: { label: stars, cls: "lv-star" },
-    body: P(`${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 — 오늘은 <b>${STEMS[tStem]}${BRANCHES[tBranch]}(${STEMS_H[tStem]}${BRANCHES_H[tBranch]})</b>일입니다.`) +
+    body: P(`📅 <b>${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][now.getDay()]}요일</b>의 운세 — 오늘은 <b>${STEMS[tStem]}${BRANCHES[tBranch]}(${STEMS_H[tStem]}${BRANCHES_H[tBranch]})</b>일입니다.`) +
       P(TODAY[tRel]) +
       `<div class="luck">🍀 행운의 색 <b>${luck.color}</b> · 방위 <b>${luck.dir}</b> · 숫자 <b>${luck.num}</b></div>`,
   };

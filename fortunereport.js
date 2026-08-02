@@ -81,9 +81,12 @@ function buildFortuneReport(input, picks, deps) {
     picks[0].reversed ? "뽑은 카드가 역방향인 만큼, 서두르다 놓치는 부분은 없는지 한 번 더 점검하는 습관이 오늘의 실수를 줄여줍니다." : "",
     `작은 팁으로, 오늘 행운의 색은 ‘${daily.color}’, 행운의 숫자는 ${daily.num}입니다. 옷·소품·약속 시간처럼 사소한 곳에 슬쩍 활용해 기분을 띄워보세요.`,
   ]);
+  const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
+  const todayLabel = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WEEKDAY[now.getDay()]}요일`;
   const today = {
     id: "today", label: "오늘의 운세", emoji: "📅", verdict: verdict(todayScore),
-    body: P(`${z.name}(${z.sym}) · ${z.elem}의 기운 아래, 오늘의 별 운은 <b>${stars(daily.star)}</b>. 사주로는 오늘이 <b>${TEN_GOD_KO[todayRel]}</b>의 날이라 ${TG_SHORT[todayRel]}입니다.`) +
+    body: P(`📅 <b>${todayLabel}</b>의 운세입니다.`) +
+      P(`${z.name}(${z.sym}) · ${z.elem}의 기운 아래, 오늘의 별 운은 <b>${stars(daily.star)}</b>. 사주로는 오늘이 <b>${TEN_GOD_KO[todayRel]}</b>의 날이라 ${TG_SHORT[todayRel]}입니다.`) +
       cardBlock(picks[0]) + P(tGood) + P(tCaution),
   };
 
@@ -155,6 +158,7 @@ function buildFortuneReport(input, picks, deps) {
 
   // ================= 종합 요약 =================
   const summary =
+    P(`📅 <b>${todayLabel}</b> 기준`) +
     P(`<b>${z.name}(${z.sym}) · ${STEMS[saju.dayMaster]} 일간</b>인 당신, 오늘의 종합 운은 <b>${stars(daily.star)}</b>입니다.`) +
     P(`사주·별자리·바이오리듬·타로가 함께 가리키는 오늘의 큰 흐름은 <b>${TG_SHORT[todayRel]}</b>이며, 지금은 ${bioDom.name} 컨디션이 ${bioDomPh.txt}인 시기입니다. ${daily.star >= 4 ? "네 신호가 대체로 순방향이라 적극적으로 움직여도 좋은 날이에요." : daily.star <= 2 ? "흐름이 다소 무거우니 벌이기보다 정비·준비에 힘을 쓰면 오히려 이득입니다." : "큰 기복 없는 무난한 흐름이니 하던 일을 차근히 이어가면 됩니다."}`) +
     P(`아래에서 <b>오늘·연애·직장·재물</b> 순으로, 좋은 점과 유의할 점을 하나씩 풀어드릴게요.`);
